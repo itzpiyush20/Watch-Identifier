@@ -22,14 +22,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch initial session
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
+    // Hard timeout — if Supabase never responds, unblock the app after 5s
+    const timeout = setTimeout(() => {
+      console.warn("[Auth] getSession timed out — proceeding unauthenticated");
       setLoading(false);
-    });
+    }, 5000);
 
-    // Listen for changes in authentication state
+    // Fetch initial session from SecureStore (fast — no network needed)
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: initialSession } }) => {
+        clearTimeout(timeout);
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        setLoading(false);
+      })
+      .catch((err) => {
+        clearTimeout(timeout);
+        console.error("[Auth] getSession failed:", err);
+        // Still unblock the app — user will be shown login screen
+        setLoading(false);
+      });
+
+    // Listen for auth state changes (sign-in / sign-out)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, currentSession) => {
@@ -39,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);

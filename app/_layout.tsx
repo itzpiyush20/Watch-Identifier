@@ -10,6 +10,22 @@ import { RemoteConfigProvider } from "@/hooks/useRemoteConfig";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { colors } from "@/theme";
 
+/** Dark loading screen — shown while auth session is being resolved. */
+function LoadingScreen() {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.background,
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <ActivityIndicator size="large" color={colors.gold} />
+    </View>
+  );
+}
+
 function InitialLayout() {
   const { session, loading } = useAuth();
   const segments = useSegments();
@@ -27,19 +43,9 @@ function InitialLayout() {
     }
   }, [session, loading, segments, router]);
 
+  // Show dark loading screen while resolving — never show a white screen
   if (loading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: colors.background,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <ActivityIndicator size="large" color={colors.gold} />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   return (
@@ -49,6 +55,8 @@ function InitialLayout() {
         headerTintColor: colors.gold,
         headerTitleStyle: { color: colors.textPrimary },
         contentStyle: { backgroundColor: colors.background },
+        // Ensure navigator container background is dark too
+        animation: "fade",
       }}
     >
       <Stack.Screen name="index" options={{ title: "The Watch Identifier" }} />
@@ -73,14 +81,16 @@ export default function RootLayout() {
         style={{ flex: 1, backgroundColor: colors.background }}
       >
         <SafeAreaProvider>
-          <DatabaseProvider>
-            <AuthProvider>
-              <RemoteConfigProvider>
-                <StatusBar style="light" />
-                <InitialLayout />
-              </RemoteConfigProvider>
-            </AuthProvider>
-          </DatabaseProvider>
+          <View style={{ flex: 1, backgroundColor: colors.background }}>
+            <DatabaseProvider>
+              <AuthProvider>
+                <RemoteConfigProvider>
+                  <StatusBar style="light" />
+                  <InitialLayout />
+                </RemoteConfigProvider>
+              </AuthProvider>
+            </DatabaseProvider>
+          </View>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
