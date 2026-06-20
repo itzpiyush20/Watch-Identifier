@@ -15,9 +15,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   userInterfaceStyle: "dark",
   newArchEnabled: false,
   icon: "./assets/adaptive-icon.png",
+  splash: {
+    image: "./assets/adaptive-icon.png",
+    resizeMode: "contain",
+    backgroundColor: "#0B0B0C",
+  },
   android: {
     package: "com.watchidentifier.app",
-    versionCode: 2,
+    versionCode: 3,
     permissions: ["CAMERA", "VIBRATE"],
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",

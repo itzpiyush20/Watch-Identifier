@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { SQLiteDatabase } from "expo-sqlite";
-import { getDatabase } from "@/database";
 
 interface DatabaseContextValue {
   db: SQLiteDatabase | null;
@@ -23,14 +22,25 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    getDatabase()
-      .then((db) => {
+
+    const init = async () => {
+      try {
+        // Lazy-import so any import-time crash is caught here, not at module load
+        const { getDatabase } = await import("@/database");
+        const db = await getDatabase();
         if (!cancelled) setState({ db, ready: true, error: null });
-      })
-      .catch((err) => {
+      } catch (err) {
+        console.error("[DatabaseProvider] Failed to initialize DB:", err);
         if (!cancelled)
           setState({ db: null, ready: false, error: err as Error });
-      });
+        // NOTE: We intentionally do NOT re-throw — the app still renders
+        // without a database so the user sees an error state rather than
+        // a black screen crash.
+      }
+    };
+
+    void init();
+
     return () => {
       cancelled = true;
     };

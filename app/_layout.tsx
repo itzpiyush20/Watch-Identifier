@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DatabaseProvider } from "@/hooks/useDatabase";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { RemoteConfigProvider } from "@/hooks/useRemoteConfig";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { colors } from "@/theme";
 
 function InitialLayout() {
@@ -20,17 +21,22 @@ function InitialLayout() {
     const inAuthGroup = segments[0] === "(auth)";
 
     if (!session && !inAuthGroup) {
-      // Redirect to sign-in page if not authenticated
       router.replace("/(auth)/login");
     } else if (session && inAuthGroup) {
-      // Redirect to home page if authenticated
       router.replace("/");
     }
   }, [session, loading, segments, router]);
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.background,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
         <ActivityIndicator size="large" color={colors.gold} />
       </View>
     );
@@ -62,18 +68,21 @@ function InitialLayout() {
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
-      <SafeAreaProvider>
-        <DatabaseProvider>
-          <AuthProvider>
-            <RemoteConfigProvider>
-              <StatusBar style="light" />
-              <InitialLayout />
-            </RemoteConfigProvider>
-          </AuthProvider>
-        </DatabaseProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView
+        style={{ flex: 1, backgroundColor: colors.background }}
+      >
+        <SafeAreaProvider>
+          <DatabaseProvider>
+            <AuthProvider>
+              <RemoteConfigProvider>
+                <StatusBar style="light" />
+                <InitialLayout />
+              </RemoteConfigProvider>
+            </AuthProvider>
+          </DatabaseProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
-
