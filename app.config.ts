@@ -22,7 +22,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: "com.watchidentifier.app",
-    versionCode: 4,
+    versionCode: 5,
     permissions: ["CAMERA", "VIBRATE"],
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",

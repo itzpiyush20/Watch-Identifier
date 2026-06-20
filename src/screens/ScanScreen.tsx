@@ -21,7 +21,6 @@ import { processImageForUpload } from "@/utils/imageUtils";
 import { hashImageBase64 } from "@/utils/imageHash";
 import { identifyWatch } from "@/services/api";
 import { useScanCache } from "@/hooks/useScanCache";
-import { useDatabase } from "@/hooks/useDatabase";
 import { useScanStore } from "@/store/scanStore";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortfolio } from "@/hooks/usePortfolio";
@@ -42,7 +41,6 @@ export function ScanScreen() {
 
   const { session, user } = useAuth();
   const { save: saveToPortfolio } = usePortfolio(user?.id);
-  const { ready: dbReady } = useDatabase();
   const scanCache = useScanCache();
   const setResult = useScanStore((s) => s.setResult);
 
@@ -123,8 +121,7 @@ export function ScanScreen() {
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current || isProcessing) return;
     const photo = await cameraRef.current.takePictureAsync({
-      quality: 1, // max from camera; we compress ourselves
-      skipProcessing: true, // faster on Android
+      quality: 0.85,
     });
     if (!photo) return;
     await runPipeline(photo.uri, photo.width, photo.height);
@@ -212,7 +209,7 @@ export function ScanScreen() {
 
           <CaptureButton
             onPress={handleCapture}
-            disabled={!dbReady || isProcessing}
+            disabled={isProcessing}
             loading={isProcessing}
           />
 
