@@ -6,9 +6,8 @@ import {
   Pressable,
   Dimensions,
   Alert,
-  Platform,
 } from "react-native";
-import { CameraView, useCameraPermissions, type CameraType } from "expo-camera";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -24,6 +23,8 @@ import { identifyWatch } from "@/services/api";
 import { useScanCache } from "@/hooks/useScanCache";
 import { useDatabase } from "@/hooks/useDatabase";
 import { useScanStore } from "@/store/scanStore";
+import { useAuth } from "@/hooks/useAuth";
+import { usePortfolio } from "@/hooks/usePortfolio";
 
 const { height: SCREEN_H } = Dimensions.get("window");
 
@@ -39,6 +40,8 @@ export function ScanScreen() {
   const [flashOn, setFlashOn] = useState(false);
   const [status, setStatus] = useState<ScanStatus>({ kind: "idle" });
 
+  const { session, user } = useAuth();
+  const { save: saveToPortfolio } = usePortfolio(user?.id);
   const { ready: dbReady } = useDatabase();
   const scanCache = useScanCache();
   const setResult = useScanStore((s) => s.setResult);
@@ -74,6 +77,11 @@ export function ScanScreen() {
       const hash = await hashImageBase64(processed.base64);
       const cached = await scanCache.get(hash);
       if (cached) {
+        try {
+          await saveToPortfolio(cached, processed.uri, user?.id ?? null);
+        } catch (err) {
+          console.error("[ScanScreen] Failed to save cached result to portfolio:", err);
+        }
         setResult(cached, processed.uri);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.push("/results");
@@ -83,13 +91,18 @@ export function ScanScreen() {
 
       setStatus({ kind: "processing", label: "Identifying watch…" });
       try {
-        // TODO Phase 5: pass real accessToken from Supabase session.
         const result = await identifyWatch({
           imageBase64: processed.base64,
           countryCode: "IN", // TODO Phase 6: resolve from expo-localization
-          userId: undefined, // TODO Phase 5: real userId
+          accessToken: session?.access_token,
+          userId: user?.id,
         });
         await scanCache.set(hash, result);
+        try {
+          await saveToPortfolio(result, processed.uri, user?.id ?? null);
+        } catch (err) {
+          console.error("[ScanScreen] Failed to save scan result to portfolio:", err);
+        }
         setResult(result, processed.uri);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.push("/results");
@@ -101,7 +114,7 @@ export function ScanScreen() {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     },
-    [scanCache, setResult, router]
+    [scanCache, setResult, router, session, user, saveToPortfolio]
   );
 
   // ---------------------------------------------------------------------------

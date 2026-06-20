@@ -1,59 +1,333 @@
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import React from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  FlatList,
+  Image,
+  Dimensions,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { colors, spacing, typography, radius } from "@/theme";
+import { useAuth } from "@/hooks/useAuth";
+import { usePortfolio } from "@/hooks/usePortfolio";
+import { useScanStore } from "@/store/scanStore";
+import { formatCurrency } from "@/utils/format";
+import { getDeviceCurrency } from "@/utils/format";
+import type { PortfolioEntry, IdentifyResponse } from "@/types";
 
-/**
- * Entry screen — bridges Phase 1 placeholder to the real scanner.
- * Will become an authenticated home/collection screen in Phase 5.
- */
+const { width } = Dimensions.get("window");
+const CARD_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;
+
 export default function HomeScreen() {
   const router = useRouter();
+  const { user, signOut } = useAuth();
+  const { entries, loading } = usePortfolio(user?.id);
+  const { setResult } = useScanStore();
+
+  const handleCardPress = (entry: PortfolioEntry) => {
+    try {
+      const market = JSON.parse(entry.market_data_json);
+      const authenticity = JSON.parse(entry.authenticity_caution);
+
+      const response: IdentifyResponse = {
+        identification: {
+          brand: entry.brand,
+          model_family: entry.model_family,
+          reference_number: entry.reference_number,
+          search_string: `${entry.brand} ${entry.model_family}`,
+          confidence_score: entry.confidence_score,
+          possible_matches: [],
+          authenticity_caution: authenticity,
+          verification_required:
+            entry.confidence_score < 0.85 || entry.reference_number != null,
+        },
+        market: market,
+        cached: true,
+        request_id: entry.id,
+      };
+
+      setResult(response, entry.image_uri);
+      router.push("/results");
+    } catch (e) {
+      console.error("[HomeScreen] Failed to parse portfolio entry:", e);
+    }
+  };
+
+  const getCollectionValue = () => {
+    return entries.reduce((sum, entry) => {
+      try {
+        const market = JSON.parse(entry.market_data_json);
+        return sum + (market.median_estimate ?? 0);
+      } catch {
+        return sum;
+      }
+    }, 0);
+  };
+
+  const renderItem = ({ item }: { item: PortfolioEntry }) => {
+    let medianPrice = "—";
+    try {
+      const market = JSON.parse(item.market_data_json);
+      if (market.median_estimate) {
+        medianPrice = formatCurrency(market.median_estimate, market.currency);
+      }
+    } catch {}
+
+    return (
+      <Pressable style={styles.card} onPress={() => handleCardPress(item)}>
+        <View style={styles.imageContainer}>
+          {item.image_uri ? (
+            <Image source={{ uri: item.image_uri }} style={styles.cardImage} />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <Text style={styles.placeholderText}>🕒</Text>
+            </View>
+          )}
+          <View style={styles.syncBadge}>
+            <Text style={styles.syncText}>{item.synced === 1 ? "☁️" : "🔄"}</Text>
+          </View>
+        </View>
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardBrand} numberOfLines={1}>
+            {item.brand}
+          </Text>
+          <Text style={styles.cardModel} numberOfLines={1}>
+            {item.model_family}
+          </Text>
+          <Text style={styles.cardPrice}>{medianPrice}</Text>
+        </View>
+      </Pressable>
+    );
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.gold} />
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <View style={styles.center}>
-        <Text style={styles.kicker}>OFFLINE-FIRST · ANDROID</Text>
-        <Text style={styles.title}>The Watch{"\n"}Identifier</Text>
-        <Text style={styles.subtitle}>
-          Scan any wristwatch to identify the brand, model, and an estimated market range.
-        </Text>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerKicker}>OFFLINE-FIRST COLLECTION</Text>
+          <Text style={styles.headerTitle}>Horology Vault</Text>
+        </View>
+        {user && (
+          <Pressable style={styles.signOutBtn} onPress={signOut}>
+            <Text style={styles.signOutBtnText}>Log Out</Text>
+          </Pressable>
+        )}
       </View>
 
-      <View style={styles.actions}>
-        <Pressable
-          style={styles.primaryBtn}
-          onPress={() => router.push("/scan")}
-          accessibilityRole="button"
-          accessibilityLabel="Scan a watch"
-        >
-          <Text style={styles.primaryBtnText}>Scan a Watch</Text>
+      {/* Collection Stats Card */}
+      {entries.length > 0 && (
+        <View style={styles.statsCard}>
+          <View style={styles.statsRow}>
+            <View>
+              <Text style={styles.statsLabel}>COLLECTION VALUE</Text>
+              <Text style={styles.statsValue}>
+                {formatCurrency(getCollectionValue(), getDeviceCurrency())}
+              </Text>
+            </View>
+            <View style={styles.statsDivider} />
+            <View style={styles.statsItem}>
+              <Text style={styles.statsLabel}>TIMEPIECES</Text>
+              <Text style={styles.statsValue}>{entries.length}</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Watch Grid or Empty State */}
+      {entries.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyIcon}>🕒</Text>
+          <Text style={styles.emptyTitle}>Vault is Empty</Text>
+          <Text style={styles.emptySubtitle}>
+            Scan a wristwatch to automatically identify it, estimate its market value,
+            and add it to your digital vault.
+          </Text>
+          <Pressable style={styles.primaryBtn} onPress={() => router.push("/scan")}>
+            <Text style={styles.primaryBtnText}>Scan a Watch</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <FlatList
+          data={entries}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={styles.listContent}
+          columnWrapperStyle={styles.columnWrapper}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+
+      {/* Floating Action Button */}
+      {entries.length > 0 && (
+        <Pressable style={styles.fab} onPress={() => router.push("/scan")}>
+          <Text style={styles.fabText}>+ Scan</Text>
         </Pressable>
-      </View>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  center: {
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  headerKicker: { ...typography.label, color: colors.goldMuted, fontSize: 10 },
+  headerTitle: { ...typography.title, color: colors.textPrimary },
+  signOutBtn: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  signOutBtnText: { ...typography.caption, color: colors.textSecondary },
+  statsCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    marginHorizontal: spacing.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  statsDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.md,
+  },
+  statsItem: {
+    alignItems: "flex-end",
+  },
+  statsLabel: { ...typography.label, color: colors.textTertiary, fontSize: 10 },
+  statsValue: { ...typography.heading, color: colors.gold, fontSize: 20 },
+  listContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: 90,
+  },
+  columnWrapper: {
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
+  card: {
+    width: CARD_WIDTH,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    overflow: "hidden",
+  },
+  imageContainer: {
+    height: 140,
+    backgroundColor: colors.surfaceElevated,
+    position: "relative",
+  },
+  cardImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  placeholderImage: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  placeholderText: {
+    fontSize: 32,
+  },
+  syncBadge: {
+    position: "absolute",
+    top: spacing.xs,
+    right: spacing.xs,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 12,
+    padding: 4,
+    width: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  syncText: {
+    fontSize: 12,
+  },
+  cardInfo: {
+    padding: spacing.sm,
+    gap: 2,
+  },
+  cardBrand: { ...typography.label, color: colors.gold, fontSize: 12 },
+  cardModel: { ...typography.body, color: colors.textPrimary, fontSize: 14 },
+  cardPrice: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  emptyContainer: {
     flex: 1,
     justifyContent: "center",
-    padding: spacing.lg,
+    alignItems: "center",
+    paddingHorizontal: spacing.xl,
     gap: spacing.md,
   },
-  kicker: { ...typography.label, color: colors.goldMuted },
-  title: { ...typography.display, color: colors.textPrimary, lineHeight: 40 },
-  subtitle: { ...typography.body, color: colors.textSecondary },
-  actions: {
-    padding: spacing.lg,
-    gap: spacing.md,
+  emptyIcon: {
+    fontSize: 64,
+    color: colors.goldMuted,
+  },
+  emptyTitle: { ...typography.title, color: colors.textPrimary },
+  emptySubtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 22,
   },
   primaryBtn: {
     backgroundColor: colors.gold,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
     alignItems: "center",
+    marginTop: spacing.md,
   },
   primaryBtnText: { ...typography.label, color: colors.textOnGold, fontSize: 16 },
+  fab: {
+    position: "absolute",
+    bottom: spacing.lg,
+    alignSelf: "center",
+    backgroundColor: colors.gold,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  fabText: { ...typography.label, color: colors.textOnGold, fontSize: 16 },
 });

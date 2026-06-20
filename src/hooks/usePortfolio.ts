@@ -8,6 +8,7 @@ import {
   serializeMarketData,
   serializeAuthenticityCaution,
 } from "@/database";
+import { syncPortfolio } from "@/services/syncService";
 import { useDatabase } from "./useDatabase";
 
 interface UsePortfolioReturn {
@@ -41,6 +42,27 @@ export function usePortfolio(userId?: string | null): UsePortfolioReturn {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Background Sync Effect
+  useEffect(() => {
+    if (!db || !userId) return;
+
+    let active = true;
+    const runBackgroundSync = async () => {
+      await syncPortfolio(db, userId);
+      if (active) {
+        // Refresh local state to reflect updated sync flags
+        const rows = await listPortfolioEntries(db, userId);
+        setEntries(rows);
+      }
+    };
+
+    void runBackgroundSync();
+
+    return () => {
+      active = false;
+    };
+  }, [db, userId]);
 
   const save = useCallback(
     async (

@@ -1,5 +1,17 @@
+import * as Localization from "expo-localization";
+
 /** Locale-aware money + number formatting. India uses the lakh/crore
  *  grouping (e.g. ₹1,23,456) via the en-IN Intl locale. */
+
+export function getDeviceLocale(): string {
+  const locales = Localization.getLocales();
+  return locales[0]?.languageTag ?? "en-IN";
+}
+
+export function getDeviceCurrency(): string {
+  const locales = Localization.getLocales();
+  return locales[0]?.currencyCode ?? "INR";
+}
 
 export function formatCurrency(
   amount: number | null | undefined,
@@ -48,3 +60,4 @@ function localeForCurrency(currency: string): string {
       return "en-US";
   }
 }
+
