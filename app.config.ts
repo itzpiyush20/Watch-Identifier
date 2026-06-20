@@ -39,6 +39,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   extra: {
     // PUBLIC ONLY. Resolved at build time from EXPO_PUBLIC_* env vars.
+    eas: {
+      projectId: "cd0f7efe-f653-4b6f-9c2f-3b04b1b99198",
+    },
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? "",
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? "",
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "",
