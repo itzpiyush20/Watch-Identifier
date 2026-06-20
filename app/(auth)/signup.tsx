@@ -153,7 +153,7 @@ export default function SignupScreen() {
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>Already have an account? </Text>
-              <Pressable onPress={() => router.push("/login")} disabled={loading}>
+              <Pressable onPress={() => router.push("/(auth)/login")} disabled={loading}>
                 <Text style={styles.linkText}>Sign In</Text>
               </Pressable>
             </View>

@@ -11,9 +11,22 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_ENV": "production",
+        "EXPO_PUBLIC_API_BASE_URL": "https://watch-identifier.vercel.app",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://dwlujmdvhjvqlvxqdgfm.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3bHVqbWR2aGp2cWx2eHFkZ2ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTgyMjksImV4cCI6MjA5NzM3NDIyOX0.OsxTa8bG1eV4I6dsgqTcgu-2zQwexDKUl8UMDIZ5wgE"
       }
     },
-    "production": {}
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_ENV": "production",
+        "EXPO_PUBLIC_API_BASE_URL": "https://watch-identifier.vercel.app",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://dwlujmdvhjvqlvxqdgfm.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3bHVqbWR2aGp2cWx2eHFkZ2ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTgyMjksImV4cCI6MjA5NzM3NDIyOX0.OsxTa8bG1eV4I6dsgqTcgu-2zQwexDKUl8UMDIZ5wgE"
+      }
+    }
   },
   "submit": {
     "production": {}

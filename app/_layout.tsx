@@ -21,7 +21,7 @@ function InitialLayout() {
 
     if (!session && !inAuthGroup) {
       // Redirect to sign-in page if not authenticated
-      router.replace("/login");
+      router.replace("/(auth)/login");
     } else if (session && inAuthGroup) {
       // Redirect to home page if authenticated
       router.replace("/");
