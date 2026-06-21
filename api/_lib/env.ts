@@ -13,11 +13,11 @@ function optional(name: string): string | undefined {
 }
 
 export const env = {
-  openrouter: {
+  groq: {
     get apiKey() {
-      return required("OPENROUTER_API_KEY");
+      return required("GROQ_API_KEY");
     },
-    model: process.env.OPENROUTER_MODEL || "google/gemma-4-31b-it:free",
+    model: process.env.GROQ_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct",
   },
   ebay: {
     get clientId() {

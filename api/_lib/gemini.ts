@@ -47,7 +47,7 @@ Rules:
 - Output ONLY the JSON object, no markdown, no prose.`;
 
 export async function identifyWithGemini(imageBase64: string): Promise<Identification> {
-  const url = "https://openrouter.ai/api/v1/chat/completions";
+  const url = "https://api.groq.com/openai/v1/chat/completions";
 
   // Normalize to a data URL; strip any existing prefix first to avoid double-prefixing.
   const data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
@@ -59,10 +59,10 @@ export async function identifyWithGemini(imageBase64: string): Promise<Identific
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${env.openrouter.apiKey}`,
+        Authorization: `Bearer ${env.groq.apiKey}`,
       },
       body: JSON.stringify({
-        model: env.openrouter.model,
+        model: env.groq.model,
         temperature: 0.1,
         response_format: { type: "json_object" },
         messages: [
