@@ -13,7 +13,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: "0.1.0",
   orientation: "portrait",
   userInterfaceStyle: "dark",
-  newArchEnabled: false,
+  newArchEnabled: true,
   icon: "./assets/adaptive-icon.png",
   splash: {
     image: "./assets/adaptive-icon.png",
