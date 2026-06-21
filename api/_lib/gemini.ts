@@ -42,6 +42,8 @@ Return STRICT JSON only, matching this schema exactly:
   }
 }
 Rules:
+- FIRST look for any text, logo, or wordmark printed/engraved on the dial, bezel, or case — this is the
+  strongest signal for brand. Read it literally; do not guess a different brand than what is written.
 - Do NOT fabricate reference numbers. If not clearly readable, use null.
 - Lower confidence_score when the image is blurry, partial, or ambiguous.
 - Output ONLY the JSON object, no markdown, no prose.`;

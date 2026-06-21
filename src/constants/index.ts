@@ -9,8 +9,8 @@ export const CACHE_TTL = {
 } as const;
 
 export const IMAGE = {
-  MAX_LONGEST_EDGE: 800,
-  COMPRESS_QUALITY: 0.7, // 0..1 for expo-image-manipulator
+  MAX_LONGEST_EDGE: 1600,
+  COMPRESS_QUALITY: 0.85, // 0..1 for expo-image-manipulator
   MAX_UPLOAD_BYTES: 2 * 1024 * 1024, // 2 MB hard cap (matches API rejection)
 } as const;
 
