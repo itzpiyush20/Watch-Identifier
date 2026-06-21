@@ -76,7 +76,8 @@ export async function identifyWithGemini(imageBase64: string): Promise<Identific
         ],
       }),
     });
-  } catch {
+  } catch (e) {
+    console.error("[gemini] fetch failed:", e);
     throw new ApiException(ErrorCode.UPSTREAM_UNAVAILABLE, "Identification service unreachable");
   }
 
