@@ -13,11 +13,11 @@ function optional(name: string): string | undefined {
 }
 
 export const env = {
-  gemini: {
+  openrouter: {
     get apiKey() {
-      return required("GEMINI_API_KEY");
+      return required("OPENROUTER_API_KEY");
     },
-    model: process.env.GEMINI_MODEL || "gemini-2.0-flash-lite",
+    model: process.env.OPENROUTER_MODEL || "google/gemma-4-31b-it:free",
   },
   ebay: {
     get clientId() {

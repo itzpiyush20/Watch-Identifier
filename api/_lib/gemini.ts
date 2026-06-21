@@ -47,26 +47,33 @@ Rules:
 - Output ONLY the JSON object, no markdown, no prose.`;
 
 export async function identifyWithGemini(imageBase64: string): Promise<Identification> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${env.gemini.model}:generateContent?key=${env.gemini.apiKey}`;
+  const url = "https://openrouter.ai/api/v1/chat/completions";
 
-  // Strip a possible data-URL prefix; Gemini wants raw base64.
+  // Normalize to a data URL; strip any existing prefix first to avoid double-prefixing.
   const data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+  const dataUrl = `data:image/jpeg;base64,${data}`;
 
   let resp: Response;
   try {
     resp = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${env.openrouter.apiKey}`,
+      },
       body: JSON.stringify({
-        contents: [
+        model: env.openrouter.model,
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+        messages: [
           {
-            parts: [
-              { text: PROMPT },
-              { inline_data: { mime_type: "image/jpeg", data } },
+            role: "user",
+            content: [
+              { type: "text", text: PROMPT },
+              { type: "image_url", image_url: { url: dataUrl } },
             ],
           },
         ],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.1 },
       }),
     });
   } catch {
@@ -81,9 +88,9 @@ export async function identifyWithGemini(imageBase64: string): Promise<Identific
   }
 
   const json = (await resp.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    choices?: { message?: { content?: string } }[];
   };
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+  const text = json.choices?.[0]?.message?.content;
   if (!text) {
     throw new ApiException(ErrorCode.IDENTIFICATION_FAILED, "Empty identification response");
   }
