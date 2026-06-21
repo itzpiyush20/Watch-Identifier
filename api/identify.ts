@@ -4,16 +4,16 @@ import {
   IdentifyRequestSchema,
   IdentifyResponseSchema,
   type IdentifyResponse,
-} from "../src/types";
-import { ApiException, ErrorCode, sendError } from "./_lib/errors";
-import { resolveUserId } from "./_lib/auth";
-import { isPremiumUser } from "./_lib/premium";
-import { reserveScan, refundScan } from "./_lib/quota";
-import { cache } from "./_lib/cache";
-import { imageHash, base64Bytes } from "./_lib/hash";
-import { regionForCountry } from "./_lib/regions";
-import { identifyWithGemini } from "./_lib/gemini";
-import { EbayMarketProvider } from "./_lib/market/ebay";
+} from "../src/types/index.js";
+import { ApiException, ErrorCode, sendError } from "./_lib/errors.js";
+import { resolveUserId } from "./_lib/auth.js";
+import { isPremiumUser } from "./_lib/premium.js";
+import { reserveScan, refundScan } from "./_lib/quota.js";
+import { cache } from "./_lib/cache.js";
+import { imageHash, base64Bytes } from "./_lib/hash.js";
+import { regionForCountry } from "./_lib/regions.js";
+import { identifyWithGemini } from "./_lib/gemini.js";
+import { EbayMarketProvider } from "./_lib/market/ebay.js";
 
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB
 const RESPONSE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // pricing TTL (shorter of the two)

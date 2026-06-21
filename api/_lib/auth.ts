@@ -1,4 +1,4 @@
-import { env } from "./env";
+import { env } from "./env.js";
 
 /**
  * Resolves a TRUSTED userId from the request.

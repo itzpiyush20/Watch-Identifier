@@ -1,4 +1,4 @@
-import { getRedis } from "./redis";
+import { getRedis } from "./redis.js";
 
 const FREE_SCANS_PER_DAY = 3;
 const WINDOW_SECONDS = 24 * 60 * 60;

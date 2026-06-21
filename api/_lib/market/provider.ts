@@ -1,5 +1,5 @@
-import type { MarketRange } from "../../../src/types";
-import type { RegionConfig } from "../regions";
+import type { MarketRange } from "../../../src/types/index.js";
+import type { RegionConfig } from "../regions.js";
 
 export interface MarketQuery {
   searchString: string;

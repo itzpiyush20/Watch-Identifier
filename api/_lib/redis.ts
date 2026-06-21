@@ -1,5 +1,5 @@
 import { Redis } from "@upstash/redis";
-import { env } from "./env";
+import { env } from "./env.js";
 
 /** Lazily-created Upstash client. Returns null when Redis isn't configured so
  *  callers can degrade gracefully (cache skipped, quota fails open in dev). */

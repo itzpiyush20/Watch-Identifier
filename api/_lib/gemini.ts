@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { env } from "./env";
-import { ApiException, ErrorCode } from "./errors";
-import { IdentificationSchema, type Identification } from "../../src/types";
+import { env } from "./env.js";
+import { ApiException, ErrorCode } from "./errors.js";
+import { IdentificationSchema, type Identification } from "../../src/types/index.js";
 
 /** Raw shape we ask Gemini to return. Kept separate from our domain schema so a
  *  model output change can't silently corrupt downstream contracts. */

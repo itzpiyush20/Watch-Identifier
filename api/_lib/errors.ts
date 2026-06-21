@@ -1,5 +1,5 @@
 import type { VercelResponse } from "@vercel/node";
-import type { ApiError } from "../../src/types";
+import type { ApiError } from "../../src/types/index.js";
 
 /** Stable, client-facing error codes. */
 export const ErrorCode = {

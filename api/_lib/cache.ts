@@ -1,4 +1,4 @@
-import { getRedis } from "./redis";
+import { getRedis } from "./redis.js";
 
 /** Server-side response cache. Degrades to a no-op when Redis is unconfigured. */
 export const cache = {

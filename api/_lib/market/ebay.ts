@@ -1,7 +1,7 @@
-import { env } from "../env";
-import { MarketSource, type MarketRange } from "../../../src/types";
-import { DISCLAIMERS } from "./disclaimers";
-import type { MarketDataProvider, MarketQuery } from "./provider";
+import { env } from "../env.js";
+import { MarketSource, type MarketRange } from "../../../src/types/index.js";
+import { DISCLAIMERS } from "./disclaimers.js";
+import type { MarketDataProvider, MarketQuery } from "./provider.js";
 
 const TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token";
 const BROWSE_URL = "https://api.ebay.com/buy/browse/v1/item_summary/search";
