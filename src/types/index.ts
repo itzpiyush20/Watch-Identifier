@@ -81,7 +81,8 @@ export type MarketRange = z.infer<typeof MarketRangeSchema>;
 // ---------------------------------------------------------------------------
 
 export const IdentifyRequestSchema = z.object({
-  imageBase64: z.string().min(1),
+  imageBase64: z.string().min(1), // front of the watch (dial)
+  imageBase64Back: z.string().min(1).optional(), // case back, for authenticity checks
   countryCode: z.string().length(2), // ISO 3166-1 alpha-2, e.g. "IN"
   userId: z.string().uuid().optional(),
 });

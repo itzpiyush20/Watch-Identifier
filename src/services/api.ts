@@ -19,6 +19,8 @@ export class ApiClientError extends Error {
 
 export interface IdentifyParams {
   imageBase64: string;
+  /** Optional case-back photo; improves authenticity-check accuracy. */
+  imageBase64Back?: string;
   countryCode: string;
   /** Supabase access token; sent as Bearer for server-side user verification. */
   accessToken?: string;
@@ -29,6 +31,7 @@ export interface IdentifyParams {
 /** Calls the secure Vercel proxy. The client never holds AI/eBay keys. */
 export async function identifyWatch({
   imageBase64,
+  imageBase64Back,
   countryCode,
   accessToken,
   userId,
@@ -45,7 +48,7 @@ export async function identifyWatch({
         "Content-Type": "application/json",
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
-      body: JSON.stringify({ imageBase64, countryCode, userId }),
+      body: JSON.stringify({ imageBase64, imageBase64Back, countryCode, userId }),
     });
   } catch {
     throw new ApiClientError("NETWORK", "Network request failed", true);

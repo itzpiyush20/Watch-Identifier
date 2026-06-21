@@ -32,12 +32,21 @@ type ScanStatus =
   | { kind: "processing"; label: string }
   | { kind: "error"; message: string; retryable: boolean };
 
+interface RawCapture {
+  uri: string;
+  width: number;
+  height: number;
+}
+
 export function ScanScreen() {
   const router = useRouter();
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [flashOn, setFlashOn] = useState(false);
   const [status, setStatus] = useState<ScanStatus>({ kind: "idle" });
+  // Two-step capture: front (dial) first, then case back for authenticity checks.
+  const [stage, setStage] = useState<"front" | "back">("front");
+  const [frontCapture, setFrontCapture] = useState<RawCapture | null>(null);
 
   const { session, user } = useAuth();
   const { save: saveToPortfolio } = usePortfolio(user?.id);
@@ -46,21 +55,26 @@ export function ScanScreen() {
 
   const isProcessing = status.kind === "processing";
 
+  const resetCapture = useCallback(() => {
+    setStage("front");
+    setFrontCapture(null);
+  }, []);
+
   // ---------------------------------------------------------------------------
-  // Core scan pipeline
+  // Core scan pipeline — runs once we have the front (and optionally back) shot.
   // ---------------------------------------------------------------------------
   const runPipeline = useCallback(
-    async (
-      sourceUri: string,
-      sourceWidth: number,
-      sourceHeight: number
-    ): Promise<void> => {
+    async (front: RawCapture, back: RawCapture | null): Promise<void> => {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-      setStatus({ kind: "processing", label: "Optimizing image…" });
-      let processed;
+      setStatus({ kind: "processing", label: "Optimizing images…" });
+      let processedFront;
+      let processedBack;
       try {
-        processed = await processImageForUpload(sourceUri, sourceWidth, sourceHeight);
+        processedFront = await processImageForUpload(front.uri, front.width, front.height);
+        if (back) {
+          processedBack = await processImageForUpload(back.uri, back.width, back.height);
+        }
       } catch (err) {
         setStatus({
           kind: "error",
@@ -68,52 +82,82 @@ export function ScanScreen() {
           retryable: true,
         });
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        resetCapture();
         return;
       }
 
       setStatus({ kind: "processing", label: "Checking local cache…" });
-      const hash = await hashImageBase64(processed.base64);
+      const hash = await hashImageBase64(processedFront.base64, processedBack?.base64);
       const cached = await scanCache.get(hash);
       if (cached) {
         try {
-          await saveToPortfolio(cached, processed.uri, user?.id ?? null);
+          await saveToPortfolio(cached, processedFront.uri, user?.id ?? null);
         } catch (err) {
           console.error("[ScanScreen] Failed to save cached result to portfolio:", err);
         }
-        setResult(cached, processed.uri);
+        setResult(cached, processedFront.uri);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.push("/results");
         setStatus({ kind: "idle" });
+        resetCapture();
         return;
       }
 
       setStatus({ kind: "processing", label: "Identifying watch…" });
       try {
         const result = await identifyWatch({
-          imageBase64: processed.base64,
+          imageBase64: processedFront.base64,
+          imageBase64Back: processedBack?.base64,
           countryCode: "IN", // TODO Phase 6: resolve from expo-localization
           accessToken: session?.access_token,
           userId: user?.id,
         });
         await scanCache.set(hash, result);
         try {
-          await saveToPortfolio(result, processed.uri, user?.id ?? null);
+          await saveToPortfolio(result, processedFront.uri, user?.id ?? null);
         } catch (err) {
           console.error("[ScanScreen] Failed to save scan result to portfolio:", err);
         }
-        setResult(result, processed.uri);
+        setResult(result, processedFront.uri);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.push("/results");
         setStatus({ kind: "idle" });
+        resetCapture();
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : "Identification failed. Try again.";
         setStatus({ kind: "error", message, retryable: true });
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        resetCapture();
       }
     },
-    [scanCache, setResult, router, session, user, saveToPortfolio]
+    [scanCache, setResult, router, session, user, saveToPortfolio, resetCapture]
   );
+
+  /** Routes a freshly captured/picked image to the right step of the flow. */
+  const handleRawCapture = useCallback(
+    async (raw: RawCapture) => {
+      if (stage === "front") {
+        setFrontCapture(raw);
+        setStage("back");
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        return;
+      }
+      // stage === "back"
+      if (!frontCapture) {
+        // Shouldn't happen, but fall back to treating this as the front shot.
+        setFrontCapture(raw);
+        return;
+      }
+      await runPipeline(frontCapture, raw);
+    },
+    [stage, frontCapture, runPipeline]
+  );
+
+  const handleSkipBack = useCallback(() => {
+    if (!frontCapture || isProcessing) return;
+    void runPipeline(frontCapture, null);
+  }, [frontCapture, isProcessing, runPipeline]);
 
   // ---------------------------------------------------------------------------
   // Capture from camera
@@ -124,8 +168,8 @@ export function ScanScreen() {
       quality: 0.85,
     });
     if (!photo) return;
-    await runPipeline(photo.uri, photo.width, photo.height);
-  }, [isProcessing, runPipeline]);
+    await handleRawCapture({ uri: photo.uri, width: photo.width, height: photo.height });
+  }, [isProcessing, handleRawCapture]);
 
   // ---------------------------------------------------------------------------
   // Gallery fallback
@@ -144,8 +188,8 @@ export function ScanScreen() {
     });
     if (picked.canceled || !picked.assets[0]) return;
     const asset = picked.assets[0];
-    await runPipeline(asset.uri, asset.width, asset.height);
-  }, [isProcessing, runPipeline]);
+    await handleRawCapture({ uri: asset.uri, width: asset.width, height: asset.height });
+  }, [isProcessing, handleRawCapture]);
 
   // ---------------------------------------------------------------------------
   // Permission states
@@ -226,8 +270,16 @@ export function ScanScreen() {
         </View>
 
         <Text style={styles.hint}>
-          Centre the watch dial within the circle
+          {stage === "front"
+            ? "Centre the watch dial within the circle"
+            : "Now flip the watch and capture the case back for an authenticity check"}
         </Text>
+
+        {stage === "back" && (
+          <Pressable onPress={handleSkipBack} disabled={isProcessing} hitSlop={12}>
+            <Text style={styles.skipText}>Skip — identify from front only</Text>
+          </Pressable>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -289,7 +341,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.4)",
   },
   galleryText: { ...typography.caption, color: colors.textSecondary },
-  hint: { ...typography.caption, color: "rgba(255,255,255,0.5)" },
+  hint: { ...typography.caption, color: "rgba(255,255,255,0.5)", textAlign: "center" },
+  skipText: { ...typography.label, color: colors.gold, textDecorationLine: "underline" },
 
   // ------------ permission screen -----------------------------------------------
   permissionContainer: {

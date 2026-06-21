@@ -32,10 +32,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   if (!parsed.success) {
     return sendError(res, ErrorCode.INVALID_PAYLOAD, "Invalid request body");
   }
-  const { imageBase64, countryCode, userId: bodyUserId } = parsed.data;
+  const { imageBase64, imageBase64Back, countryCode, userId: bodyUserId } = parsed.data;
 
   if (base64Bytes(imageBase64) > MAX_UPLOAD_BYTES) {
     return sendError(res, ErrorCode.PAYLOAD_TOO_LARGE, "Image exceeds 2 MB limit");
+  }
+  if (imageBase64Back && base64Bytes(imageBase64Back) > MAX_UPLOAD_BYTES) {
+    return sendError(res, ErrorCode.PAYLOAD_TOO_LARGE, "Back image exceeds 2 MB limit");
   }
 
   // 2. Authenticate -> trusted userId.
@@ -44,9 +47,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return sendError(res, ErrorCode.UNAUTHORIZED, "Authentication required");
   }
 
-  // 3. Server cache (keyed by image + region; identical re-scans skip all cost).
+  // 3. Server cache (keyed by image(s) + region; identical re-scans skip all cost).
   const region = regionForCountry(countryCode);
-  const cacheKey = `identify:${imageHash(imageBase64)}:${region.displayCurrency}`;
+  const cacheKey = `identify:${imageHash([imageBase64, imageBase64Back])}:${region.displayCurrency}`;
   const cached = await cache.get<IdentifyResponse>(cacheKey);
   if (cached) {
     res.status(200).json({ ...cached, cached: true, request_id: requestId });
@@ -62,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   try {
     // 5. Identify.
-    const identification = await identifyWithGemini(imageBase64);
+    const identification = await identifyWithGemini(imageBase64, imageBase64Back);
 
     // 6. Market range (best-effort; never blocks identification result).
     const market = await marketProvider.getRange({
@@ -91,7 +94,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 }
 
-/** Raise the body size cap above Vercel's 1 MB default for base64 images. */
+/** Raise the body size cap above Vercel's 1 MB default — two base64 images
+ *  (front + back, each up to 2 MB raw / ~2.7 MB base64) can approach 6 MB. */
 export const config = {
-  api: { bodyParser: { sizeLimit: "4mb" } },
+  api: { bodyParser: { sizeLimit: "8mb" } },
 };
