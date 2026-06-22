@@ -20,6 +20,7 @@ import { FlashToggle } from "@/components/scanner/FlashToggle";
 import { processImageForUpload } from "@/utils/imageUtils";
 import { hashImageBase64 } from "@/utils/imageHash";
 import { identifyWatch } from "@/services/api";
+import { track } from "@/services/analytics";
 import { useScanCache } from "@/hooks/useScanCache";
 import { useScanStore } from "@/store/scanStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -65,6 +66,7 @@ export function ScanScreen() {
   // ---------------------------------------------------------------------------
   const runPipeline = useCallback(
     async (front: RawCapture, back: RawCapture | null): Promise<void> => {
+      void track("scan_started", { has_back_image: back != null }, session?.access_token);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
       setStatus({ kind: "processing", label: "Optimizing images…" });

@@ -13,13 +13,17 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useScanStore } from "@/store/scanStore";
 import { useRemoteConfig } from "@/hooks/useRemoteConfig";
+import { useAuth } from "@/hooks/useAuth";
 import { colors, spacing, typography, radius } from "@/theme";
 import { formatCurrency } from "@/utils/format";
+import { track } from "@/services/analytics";
 
 export default function ResultsScreen() {
   const router = useRouter();
   const { result, imageUri, clear } = useScanStore();
   const config = useRemoteConfig();
+  const { session } = useAuth();
+  const [rating, setRating] = React.useState<"up" | "down" | null>(null);
 
   if (!result) {
     return (
@@ -29,7 +33,7 @@ export default function ResultsScreen() {
     );
   }
 
-  const { identification, market } = result;
+  const { identification, market, request_id } = result;
 
   // Determine confidence color and label
   const getConfidenceLevel = (score: number) => {
@@ -45,6 +49,12 @@ export default function ResultsScreen() {
   const confidence = getConfidenceLevel(identification.confidence_score);
 
   const handleTradeIn = () => {
+    void track(
+      "trade_in_clicked",
+      { request_id, brand: identification.brand, model_family: identification.model_family },
+      session?.access_token
+    );
+
     const number = config.partner_whatsapp_number;
     if (!number) return;
 
@@ -67,6 +77,23 @@ export default function ResultsScreen() {
         }
       })
       .catch((err) => console.error("[Results] Link error:", err));
+  };
+
+  const handleRate = (value: "up" | "down") => {
+    if (rating) return; // one rating per results view, matches spec
+    setRating(value);
+    void track(
+      "result_rated",
+      {
+        request_id,
+        brand: identification.brand,
+        model_family: identification.model_family,
+        reference_number: identification.reference_number,
+        confidence_score: identification.confidence_score,
+        rating: value,
+      },
+      session?.access_token
+    );
   };
 
   const hasCaution = identification.authenticity_caution.level !== "none";
@@ -184,6 +211,31 @@ export default function ResultsScreen() {
             <Text style={styles.hintBody}>{identification.additional_image_hint}</Text>
           </View>
         )}
+
+        {/* Result Rating */}
+        <View style={styles.ratingCard}>
+          <Text style={styles.ratingTitle}>Was this identification correct?</Text>
+          {rating ? (
+            <Text style={styles.ratingThanks}>Thanks for the feedback.</Text>
+          ) : (
+            <View style={styles.ratingRow}>
+              <Pressable
+                style={styles.ratingBtn}
+                onPress={() => handleRate("up")}
+                accessibilityLabel="Rate identification as correct"
+              >
+                <Text style={styles.ratingBtnText}>👍 Yes</Text>
+              </Pressable>
+              <Pressable
+                style={styles.ratingBtn}
+                onPress={() => handleRate("down")}
+                accessibilityLabel="Rate identification as incorrect"
+              >
+                <Text style={styles.ratingBtnText}>👎 No</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
 
         {/* Alternative Possible Matches */}
         {identification.possible_matches && identification.possible_matches.length > 0 && (
@@ -380,6 +432,27 @@ const styles = StyleSheet.create({
   },
   hintTitle: { ...typography.label, color: colors.textPrimary, fontSize: 13 },
   hintBody: { ...typography.body, color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+
+  // Rating Card
+  ratingCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  ratingTitle: { ...typography.label, color: colors.textPrimary, fontSize: 13 },
+  ratingThanks: { ...typography.body, color: colors.textSecondary, fontSize: 13 },
+  ratingRow: { flexDirection: "row", gap: spacing.sm },
+  ratingBtn: {
+    flex: 1,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.sm,
+    alignItems: "center",
+  },
+  ratingBtnText: { ...typography.label, color: colors.textPrimary, fontSize: 14 },
 
   // Alternatives Card
   matchesCard: {

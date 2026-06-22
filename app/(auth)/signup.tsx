@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { supabase } from "@/services/supabase";
+import { track } from "@/services/analytics";
 import { colors, spacing, typography, radius } from "@/theme";
 
 export default function SignupScreen() {
@@ -52,6 +53,7 @@ export default function SignupScreen() {
       if (error) {
         setErrorMsg(error.message);
       } else {
+        void track("signup_completed", undefined, data.session?.access_token);
         // If email confirmation is required, let the user know, else they will be logged in.
         const session = data?.session;
         if (session) {

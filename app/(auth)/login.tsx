@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { supabase } from "@/services/supabase";
+import { track } from "@/services/analytics";
 import { colors, spacing, typography, radius } from "@/theme";
 
 export default function LoginScreen() {
@@ -32,7 +33,7 @@ export default function LoginScreen() {
     setErrorMsg(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password,
       });
@@ -40,6 +41,7 @@ export default function LoginScreen() {
       if (error) {
         setErrorMsg(error.message);
       } else {
+        void track("login_completed", undefined, data.session?.access_token);
         // Redirect will be handled by the layout listener
         router.replace("/");
       }

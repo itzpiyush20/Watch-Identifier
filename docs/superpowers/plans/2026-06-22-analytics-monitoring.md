@@ -418,9 +418,16 @@ git commit -m "Track scan_completed/scan_failed/quota_exceeded and report errors
 
 ---
 
-### Task 7: Client Sentry wiring
+### Task 7: Client Sentry wiring — DEFERRED
 
-**Files:**
+**Decision (2026-06-22):** `@sentry/react-native` ships native code not bundled
+in Expo Go. Installing it would break the plain-Expo-Go testing path the
+user is actively using, forcing a switch to a custom dev client
+(`expo run:android` / EAS dev build). User chose to skip this task for now
+and keep Expo Go working; server-side Sentry (Task 4/6) still ships.
+Revisit this task whenever the project moves to a dev-client/EAS workflow.
+
+**Files (not modified):**
 - Create: `src/services/sentry.ts`
 - Modify: `app/_layout.tsx`
 - Modify: `src/components/ErrorBoundary.tsx`
