@@ -44,6 +44,7 @@ export default function HomeScreen() {
           authenticity_caution: authenticity,
           verification_required:
             entry.confidence_score < 0.85 || entry.reference_number != null,
+          additional_image_hint: null,
         },
         market: market,
         cached: true,

@@ -47,6 +47,7 @@ export const IdentificationSchema = z.object({
   possible_matches: z.array(PossibleMatchSchema),
   authenticity_caution: AuthenticityCautionSchema,
   verification_required: z.boolean(),
+  additional_image_hint: z.string().nullable(),
 });
 export type Identification = z.infer<typeof IdentificationSchema>;
 

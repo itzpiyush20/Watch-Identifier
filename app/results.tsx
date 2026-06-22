@@ -177,6 +177,14 @@ export default function ResultsScreen() {
           </Pressable>
         )}
 
+        {/* Suggested Additional Image */}
+        {identification.additional_image_hint && (
+          <View style={styles.hintCard}>
+            <Text style={styles.hintTitle}>📷 Improve Accuracy</Text>
+            <Text style={styles.hintBody}>{identification.additional_image_hint}</Text>
+          </View>
+        )}
+
         {/* Alternative Possible Matches */}
         {identification.possible_matches && identification.possible_matches.length > 0 && (
           <View style={styles.matchesCard}>
@@ -360,6 +368,18 @@ const styles = StyleSheet.create({
   },
   tradeInBtnText: { ...typography.label, color: colors.gold, fontSize: 16 },
   tradeInSubtext: { ...typography.caption, color: colors.goldMuted, fontSize: 10 },
+
+  // Additional Image Hint Card
+  hintCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  hintTitle: { ...typography.label, color: colors.textPrimary, fontSize: 13 },
+  hintBody: { ...typography.body, color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
 
   // Alternatives Card
   matchesCard: {
