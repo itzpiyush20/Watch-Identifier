@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { colors, spacing, typography, radius } from "@/theme";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortfolio } from "@/hooks/usePortfolio";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { useScanStore } from "@/store/scanStore";
 import { formatCurrency } from "@/utils/format";
 import { getDeviceCurrency } from "@/utils/format";
@@ -25,8 +26,15 @@ const CARD_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { entries, loading } = usePortfolio(user?.id);
+  const { entries: allEntries, loading } = usePortfolio(user?.id);
+  const { entitlement } = useEntitlement();
   const { setResult } = useScanStore();
+
+  const RETENTION_DAYS = 90;
+  const cutoff = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  const unlimitedHistory = entitlement?.unlimited_history ?? true; // default open until entitlement loads
+  const entries = unlimitedHistory ? allEntries : allEntries.filter((e) => e.scanned_at >= cutoff);
+  const hiddenCount = allEntries.length - entries.length;
 
   const handleCardPress = (entry: PortfolioEntry) => {
     try {
@@ -142,6 +150,13 @@ export default function HomeScreen() {
         </View>
       )}
 
+      {hiddenCount > 0 && (
+        <Text style={styles.retentionNote}>
+          {hiddenCount} older scan{hiddenCount === 1 ? "" : "s"} hidden — upgrade to
+          Connoisseur or Vault to see your full history.
+        </Text>
+      )}
+
       {/* Watch Grid or Empty State */}
       {entries.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -194,6 +209,12 @@ const styles = StyleSheet.create({
   },
   headerKicker: { ...typography.label, color: colors.goldMuted, fontSize: 10 },
   headerTitle: { ...typography.title, color: colors.textPrimary },
+  retentionNote: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+  },
   statsCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
