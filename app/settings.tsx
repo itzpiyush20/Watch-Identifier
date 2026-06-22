@@ -1,16 +1,61 @@
-import React from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import { useCountryCode } from "@/hooks/useCountryCode";
+import { useAuth } from "@/hooks/useAuth";
+import { useDatabase } from "@/hooks/useDatabase";
 import { REGIONS } from "@/constants";
 import { colors, spacing, typography, radius } from "@/theme";
+
+const apiBaseUrl: string = (Constants.expoConfig?.extra?.apiBaseUrl as string) ?? "";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { countryCode, setCountryCode } = useCountryCode();
+  const { session, signOut } = useAuth();
+  const { db } = useDatabase();
+  const [deleting, setDeleting] = useState(false);
   const version = Constants.expoConfig?.version ?? "—";
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "This permanently deletes your account and synced portfolio data. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!session?.access_token) return;
+            setDeleting(true);
+            try {
+              const resp = await fetch(`${apiBaseUrl}/api/account`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${session.access_token}` },
+              });
+              if (!resp.ok) {
+                Alert.alert("Error", "Failed to delete account. Please try again.");
+                setDeleting(false);
+                return;
+              }
+              if (db) {
+                await db.runAsync("DELETE FROM local_portfolio;");
+              }
+              await signOut();
+              router.replace("/(auth)/login");
+            } catch (err) {
+              console.error("[Settings] Account deletion failed:", err);
+              Alert.alert("Error", "Failed to delete account. Please try again.");
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
@@ -46,6 +91,19 @@ export default function SettingsScreen() {
             <Text style={styles.versionText}>{version}</Text>
           </View>
         </View>
+
+        <Text style={styles.sectionTitle}>ACCOUNT</Text>
+        <Pressable
+          style={[styles.dangerCard, deleting && styles.disabled]}
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator color={colors.danger} />
+          ) : (
+            <Text style={styles.dangerText}>Delete My Account</Text>
+          )}
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -83,4 +141,14 @@ const styles = StyleSheet.create({
   rowLabel: { ...typography.body, color: colors.textPrimary },
   rowChevron: { ...typography.body, color: colors.textTertiary, fontSize: 18 },
   versionText: { ...typography.caption, color: colors.textTertiary },
+  dangerCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.danger,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: "center",
+  },
+  dangerText: { ...typography.label, color: colors.danger },
+  disabled: { opacity: 0.6 },
 });
