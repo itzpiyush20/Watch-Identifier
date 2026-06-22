@@ -19,10 +19,19 @@ export const CONFIDENCE = {
   MEDIUM: 0.6,
 } as const;
 
-export const QUOTA = {
-  FREE_SCANS_PER_DAY: 3,
-  WINDOW_MS: 24 * 60 * 60 * 1000,
-} as const;
+export interface RegionOption {
+  code: string;
+  label: string;
+  currencySymbol: string;
+}
+
+/** Mirrors the 4 regions defined server-side in api/_lib/regions.ts. */
+export const REGIONS: RegionOption[] = [
+  { code: "IN", label: "India", currencySymbol: "₹" },
+  { code: "US", label: "United States", currencySymbol: "$" },
+  { code: "GB", label: "United Kingdom", currencySymbol: "£" },
+  { code: "DE", label: "Germany", currencySymbol: "€" },
+];
 
 export const ENTITLEMENT = {
   PREMIUM: "premium_access",

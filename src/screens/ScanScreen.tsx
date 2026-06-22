@@ -25,6 +25,7 @@ import { useScanCache } from "@/hooks/useScanCache";
 import { useScanStore } from "@/store/scanStore";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortfolio } from "@/hooks/usePortfolio";
+import { useCountryCode } from "@/hooks/useCountryCode";
 
 const { height: SCREEN_H } = Dimensions.get("window");
 
@@ -50,6 +51,7 @@ export function ScanScreen() {
   const [frontCapture, setFrontCapture] = useState<RawCapture | null>(null);
 
   const { session, user } = useAuth();
+  const { countryCode } = useCountryCode();
   const { save: saveToPortfolio } = usePortfolio(user?.id);
   const scanCache = useScanCache();
   const setResult = useScanStore((s) => s.setResult);
@@ -110,7 +112,7 @@ export function ScanScreen() {
         const result = await identifyWatch({
           imageBase64: processedFront.base64,
           imageBase64Back: processedBack?.base64,
-          countryCode: "IN", // TODO Phase 6: resolve from expo-localization
+          countryCode,
           accessToken: session?.access_token,
           userId: user?.id,
         });
@@ -133,7 +135,7 @@ export function ScanScreen() {
         resetCapture();
       }
     },
-    [scanCache, setResult, router, session, user, saveToPortfolio, resetCapture]
+    [scanCache, setResult, router, session, user, saveToPortfolio, resetCapture, countryCode]
   );
 
   /** Routes a freshly captured/picked image to the right step of the flow. */
