@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   IdentifyRequestSchema,
   IdentifyResponseSchema,
+  confidenceBand,
   type IdentifyResponse,
 } from "../src/types/index.js";
 import { ApiException, ErrorCode, sendError } from "./_lib/errors.js";
@@ -14,6 +15,8 @@ import { imageHash, base64Bytes } from "./_lib/hash.js";
 import { regionForCountry } from "./_lib/regions.js";
 import { identifyWithGemini } from "./_lib/gemini.js";
 import { EbayMarketProvider } from "./_lib/market/ebay.js";
+import { trackEvent } from "./_lib/analytics.js";
+import { captureException } from "./_lib/sentry.js";
 
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB
 const RESPONSE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // pricing TTL (shorter of the two)
@@ -60,6 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const premium = await isPremiumUser(userId);
   const quota = await reserveScan(userId, premium);
   if (!quota.allowed) {
+    await trackEvent("quota_exceeded", {}, userId);
     return sendError(res, ErrorCode.QUOTA_EXCEEDED, "Daily free scan limit reached");
   }
 
@@ -82,14 +86,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     });
 
     await cache.set(cacheKey, response, RESPONSE_TTL_MS);
+    await trackEvent(
+      "scan_completed",
+      {
+        confidence_band: confidenceBand(identification.confidence_score),
+        verification_required: identification.verification_required,
+      },
+      userId
+    );
     res.status(200).json(response);
     return;
   } catch (err) {
     await refundScan(userId, premium); // did not deliver a result
+    captureException(err);
     if (err instanceof ApiException) {
+      await trackEvent("scan_failed", { error_code: err.code }, userId);
       return sendError(res, err.code, err.message);
     }
     console.error(`[identify] ${requestId}`, err);
+    await trackEvent("scan_failed", { error_code: ErrorCode.INTERNAL }, userId);
     return sendError(res, ErrorCode.INTERNAL, "Unexpected error");
   }
 }

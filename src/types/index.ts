@@ -107,6 +107,16 @@ export const ApiErrorSchema = z.object({
 export type ApiError = z.infer<typeof ApiErrorSchema>;
 
 // ---------------------------------------------------------------------------
+// API: POST /api/track
+// ---------------------------------------------------------------------------
+
+export const TrackEventSchema = z.object({
+  event_name: z.string().min(1).max(64),
+  properties: z.record(z.unknown()).optional(),
+});
+export type TrackEvent = z.infer<typeof TrackEventSchema>;
+
+// ---------------------------------------------------------------------------
 // Local persistence (mirrors SQLite schema, built in Phase 3)
 // ---------------------------------------------------------------------------
 
