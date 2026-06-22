@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DatabaseProvider } from "@/hooks/useDatabase";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { RemoteConfigProvider } from "@/hooks/useRemoteConfig";
+import { EntitlementProvider } from "@/hooks/useEntitlement";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { colors } from "@/theme";
 
@@ -89,8 +90,10 @@ export default function RootLayout() {
             <DatabaseProvider>
               <AuthProvider>
                 <RemoteConfigProvider>
-                  <StatusBar style="light" />
-                  <InitialLayout />
+                  <EntitlementProvider>
+                    <StatusBar style="light" />
+                    <InitialLayout />
+                  </EntitlementProvider>
                 </RemoteConfigProvider>
               </AuthProvider>
             </DatabaseProvider>
