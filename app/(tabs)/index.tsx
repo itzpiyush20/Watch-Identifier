@@ -24,7 +24,7 @@ const CARD_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { entries, loading } = usePortfolio(user?.id);
   const { setResult } = useScanStore();
 
@@ -121,11 +121,6 @@ export default function HomeScreen() {
           <Text style={styles.headerKicker}>OFFLINE-FIRST COLLECTION</Text>
           <Text style={styles.headerTitle}>Horology Vault</Text>
         </View>
-        {user && (
-          <Pressable style={styles.signOutBtn} onPress={signOut}>
-            <Text style={styles.signOutBtnText}>Log Out</Text>
-          </Pressable>
-        )}
       </View>
 
       {/* Collection Stats Card */}
@@ -199,14 +194,6 @@ const styles = StyleSheet.create({
   },
   headerKicker: { ...typography.label, color: colors.goldMuted, fontSize: 10 },
   headerTitle: { ...typography.title, color: colors.textPrimary },
-  signOutBtn: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  signOutBtnText: { ...typography.caption, color: colors.textSecondary },
   statsCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,

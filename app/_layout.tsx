@@ -59,7 +59,7 @@ function InitialLayout() {
         animation: "fade",
       }}
     >
-      <Stack.Screen name="index" options={{ title: "The Watch Identifier" }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="scan"
         options={{ headerShown: false, animation: "slide_from_bottom" }}
@@ -68,6 +68,10 @@ function InitialLayout() {
         name="results"
         options={{ title: "Result", headerBackTitle: "Scan" }}
       />
+      <Stack.Screen name="settings" options={{ title: "Settings" }} />
+      <Stack.Screen name="subscription" options={{ title: "Upgrade" }} />
+      <Stack.Screen name="legal/privacy-policy" options={{ title: "Privacy Policy" }} />
+      <Stack.Screen name="legal/terms" options={{ title: "Terms of Service" }} />
       <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)/signup" options={{ headerShown: false }} />
     </Stack>
