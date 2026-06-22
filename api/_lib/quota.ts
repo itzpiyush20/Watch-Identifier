@@ -1,6 +1,5 @@
 import { getRedis } from "./redis.js";
 
-const FREE_SCANS_PER_DAY = 3;
 const WINDOW_SECONDS = 24 * 60 * 60;
 
 export interface QuotaResult {
@@ -16,16 +15,17 @@ function key(userId: string): string {
 }
 
 /**
- * Reserve one scan against the user's daily quota (reserve-then-refund pattern).
- * Premium users bypass entirely. Fails OPEN if Redis is unconfigured (dev).
+ * Reserve one scan against the user's daily limit (reserve-then-refund
+ * pattern). `limit === null` means unlimited (Vault tier) and bypasses
+ * Redis entirely. Fails OPEN if Redis is unconfigured (dev).
  */
-export async function reserveScan(userId: string, isPremium: boolean): Promise<QuotaResult> {
-  if (isPremium) {
+export async function reserveScan(userId: string, limit: number | null): Promise<QuotaResult> {
+  if (limit === null) {
     return { allowed: true, remaining: Number.POSITIVE_INFINITY, limit: Number.POSITIVE_INFINITY };
   }
   const redis = getRedis();
   if (!redis) {
-    return { allowed: true, remaining: FREE_SCANS_PER_DAY, limit: FREE_SCANS_PER_DAY };
+    return { allowed: true, remaining: limit, limit };
   }
 
   const k = key(userId);
@@ -34,21 +34,21 @@ export async function reserveScan(userId: string, isPremium: boolean): Promise<Q
     await redis.expire(k, WINDOW_SECONDS);
   }
 
-  if (count > FREE_SCANS_PER_DAY) {
+  if (count > limit) {
     await redis.decr(k); // we did not consume a scan
-    return { allowed: false, remaining: 0, limit: FREE_SCANS_PER_DAY };
+    return { allowed: false, remaining: 0, limit };
   }
 
   return {
     allowed: true,
-    remaining: Math.max(0, FREE_SCANS_PER_DAY - count),
-    limit: FREE_SCANS_PER_DAY,
+    remaining: Math.max(0, limit - count),
+    limit,
   };
 }
 
 /** Refund a previously reserved scan when downstream processing fails. */
-export async function refundScan(userId: string, isPremium: boolean): Promise<void> {
-  if (isPremium) return;
+export async function refundScan(userId: string, limit: number | null): Promise<void> {
+  if (limit === null) return;
   const redis = getRedis();
   if (!redis) return;
   try {
@@ -56,4 +56,18 @@ export async function refundScan(userId: string, isPremium: boolean): Promise<vo
   } catch {
     /* best-effort */
   }
+}
+
+/** Non-consuming read of the current quota state — used by GET /api/entitlement
+ *  so checking your remaining quota never itself counts as a scan. */
+export async function peekQuota(userId: string, limit: number | null): Promise<QuotaResult> {
+  if (limit === null) {
+    return { allowed: true, remaining: Number.POSITIVE_INFINITY, limit: Number.POSITIVE_INFINITY };
+  }
+  const redis = getRedis();
+  if (!redis) {
+    return { allowed: true, remaining: limit, limit };
+  }
+  const count = (await redis.get<number>(key(userId))) ?? 0;
+  return { allowed: count < limit, remaining: Math.max(0, limit - count), limit };
 }

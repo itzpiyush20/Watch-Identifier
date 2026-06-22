@@ -8,7 +8,7 @@ import {
 } from "../src/types/index.js";
 import { ApiException, ErrorCode, sendError } from "./_lib/errors.js";
 import { resolveUserId } from "./_lib/auth.js";
-import { isPremiumUser } from "./_lib/premium.js";
+import { getEffectiveTier, TIER_LIMITS } from "./_lib/subscriptions.js";
 import { reserveScan, refundScan } from "./_lib/quota.js";
 import { cache } from "./_lib/cache.js";
 import { imageHash, base64Bytes } from "./_lib/hash.js";
@@ -59,12 +59,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
-  // 4. Quota (reserve-then-refund). Premium bypasses.
-  const premium = await isPremiumUser(userId);
-  const quota = await reserveScan(userId, premium);
+  // 4. Quota (reserve-then-refund). Vault tier bypasses entirely.
+  const { tier } = await getEffectiveTier(userId);
+  const limit = TIER_LIMITS[tier];
+  const quota = await reserveScan(userId, limit);
   if (!quota.allowed) {
-    await trackEvent("quota_exceeded", {}, userId);
-    return sendError(res, ErrorCode.QUOTA_EXCEEDED, "Daily free scan limit reached");
+    await trackEvent("quota_exceeded", { tier }, userId);
+    return sendError(res, ErrorCode.QUOTA_EXCEEDED, "Daily scan limit reached");
   }
 
   try {
@@ -91,20 +92,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       {
         confidence_band: confidenceBand(identification.confidence_score),
         verification_required: identification.verification_required,
+        tier,
       },
       userId
     );
     res.status(200).json(response);
     return;
   } catch (err) {
-    await refundScan(userId, premium); // did not deliver a result
+    await refundScan(userId, limit); // did not deliver a result
     captureException(err);
     if (err instanceof ApiException) {
-      await trackEvent("scan_failed", { error_code: err.code }, userId);
+      await trackEvent("scan_failed", { error_code: err.code, tier }, userId);
       return sendError(res, err.code, err.message);
     }
     console.error(`[identify] ${requestId}`, err);
-    await trackEvent("scan_failed", { error_code: ErrorCode.INTERNAL }, userId);
+    await trackEvent("scan_failed", { error_code: ErrorCode.INTERNAL, tier }, userId);
     return sendError(res, ErrorCode.INTERNAL, "Unexpected error");
   }
 }
