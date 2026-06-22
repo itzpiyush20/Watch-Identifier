@@ -3,11 +3,26 @@ import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/hooks/useAuth";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { colors, spacing, typography, radius } from "@/theme";
+
+const TIER_LABEL: Record<string, string> = {
+  trial: "Free Trial",
+  free: "Free",
+  collector: "Collector",
+  connoisseur: "Connoisseur",
+  vault: "Vault ⭐",
+};
+
+function daysLeft(isoDate: string): number {
+  const ms = new Date(isoDate).getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const { entitlement } = useEntitlement();
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -15,6 +30,20 @@ export default function ProfileScreen() {
         <Text style={styles.kicker}>ACCOUNT</Text>
         <Text style={styles.email}>{user?.email ?? "—"}</Text>
       </View>
+
+      {entitlement && (
+        <View style={styles.tierCard}>
+          <Text style={styles.tierLabel}>{TIER_LABEL[entitlement.tier] ?? entitlement.tier}</Text>
+          {entitlement.tier === "trial" && entitlement.trial_ends_at && (
+            <Text style={styles.tierSub}>{daysLeft(entitlement.trial_ends_at)} days left</Text>
+          )}
+          <Text style={styles.tierSub}>
+            {entitlement.scans_remaining == null
+              ? "Unlimited scans today"
+              : `${entitlement.scans_remaining} of ${entitlement.scans_limit} scans left today`}
+          </Text>
+        </View>
+      )}
 
       <Pressable style={styles.row} onPress={() => router.push("/subscription")}>
         <Text style={styles.rowLabel}>Upgrade</Text>
@@ -59,4 +88,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   signOutBtnText: { ...typography.label, color: colors.danger },
+  tierCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.gold,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  tierLabel: { ...typography.heading, color: colors.gold, fontSize: 16 },
+  tierSub: { ...typography.caption, color: colors.textSecondary },
 });
