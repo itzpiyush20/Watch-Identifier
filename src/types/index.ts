@@ -117,6 +117,26 @@ export const TrackEventSchema = z.object({
 export type TrackEvent = z.infer<typeof TrackEventSchema>;
 
 // ---------------------------------------------------------------------------
+// Subscription tiers (shared by api/_lib/subscriptions.ts and the client)
+// ---------------------------------------------------------------------------
+
+export const TierSchema = z.enum(["trial", "free", "collector", "connoisseur", "vault"]);
+export type Tier = z.infer<typeof TierSchema>;
+
+// ---------------------------------------------------------------------------
+// API: GET /api/entitlement
+// ---------------------------------------------------------------------------
+
+export const EntitlementSchema = z.object({
+  tier: TierSchema,
+  scans_remaining: z.number().nullable(), // null = unlimited
+  scans_limit: z.number().nullable(), // null = unlimited
+  trial_ends_at: z.string().nullable(),
+  unlimited_history: z.boolean(),
+});
+export type Entitlement = z.infer<typeof EntitlementSchema>;
+
+// ---------------------------------------------------------------------------
 // Local persistence (mirrors SQLite schema, built in Phase 3)
 // ---------------------------------------------------------------------------
 
