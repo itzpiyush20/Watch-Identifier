@@ -4,7 +4,13 @@ import type { IdentifyResponse } from "@/types";
 interface ScanStore {
   result: IdentifyResponse | null;
   imageUri: string | null;
-  setResult: (result: IdentifyResponse, imageUri: string | null) => void;
+  savedEntryId: string | null; // null = not yet saved to the collection
+  setResult: (
+    result: IdentifyResponse,
+    imageUri: string | null,
+    savedEntryId?: string | null
+  ) => void;
+  setSavedEntryId: (id: string | null) => void;
   clear: () => void;
 }
 
@@ -13,6 +19,9 @@ interface ScanStore {
 export const useScanStore = create<ScanStore>((set) => ({
   result: null,
   imageUri: null,
-  setResult: (result, imageUri) => set({ result, imageUri }),
-  clear: () => set({ result: null, imageUri: null }),
+  savedEntryId: null,
+  setResult: (result, imageUri, savedEntryId = null) =>
+    set({ result, imageUri, savedEntryId }),
+  setSavedEntryId: (id) => set({ savedEntryId: id }),
+  clear: () => set({ result: null, imageUri: null, savedEntryId: null }),
 }));
