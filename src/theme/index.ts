@@ -17,12 +17,12 @@ export const radius = {
 } as const;
 
 export const typography = {
-  display: { fontSize: 32, fontWeight: "700" as const, letterSpacing: 0.3 },
-  title: { fontSize: 24, fontWeight: "700" as const, letterSpacing: 0.2 },
-  heading: { fontSize: 18, fontWeight: "600" as const },
-  body: { fontSize: 15, fontWeight: "400" as const, lineHeight: 22 },
-  label: { fontSize: 13, fontWeight: "600" as const, letterSpacing: 0.4 },
-  caption: { fontSize: 12, fontWeight: "400" as const },
+  display: { fontFamily: "BodoniModa_700Bold", fontSize: 32, letterSpacing: 0.3 },
+  title: { fontFamily: "BodoniModa_700Bold", fontSize: 24, letterSpacing: 0.2 },
+  heading: { fontFamily: "Jost_600SemiBold", fontSize: 18 },
+  body: { fontFamily: "Jost_400Regular", fontSize: 15, lineHeight: 22 },
+  label: { fontFamily: "Jost_600SemiBold", fontSize: 13, letterSpacing: 0.4 },
+  caption: { fontFamily: "Jost_400Regular", fontSize: 12 },
 } as const;
 
 export const theme = { colors, spacing, radius, typography } as const;
