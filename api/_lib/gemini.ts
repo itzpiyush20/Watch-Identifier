@@ -82,9 +82,11 @@ Return STRICT JSON only, matching this schema exactly:
       "color": string | null,
       "material": string | null          // e.g. "Metal", "Leather", "Silicone"
     },
-    "complications_visible": string[]    // plain labels only, e.g. ["date window"]. NEVER state a
-                                          // position (e.g. "at 3 o'clock") or an exact sub-dial count —
-                                          // those are precise spatial claims you are prone to inventing.
+    "complications_visible": string[]    // plain labels only, e.g. ["date window"]. Use [] if none are
+                                          // visible — never invent one just to avoid an empty array.
+                                          // NEVER state a position (e.g. "at 3 o'clock") or an exact
+                                          // sub-dial count — those are precise spatial claims you are
+                                          // prone to inventing.
   },
   "visual_fingerprint_confidence": number // 0..1 confidence in the visual_fingerprint block specifically,
                                           // independent of confidence_score (which is about brand/model)
@@ -102,8 +104,10 @@ Rules:
   in the photo, use null.
 - Every visual_fingerprint field is null if not clearly visible — never guess a specific value with no
   visual basis, the same discipline already applied to reference_number.
-- If the whole watch is too obscured, blurry, or partial to assess case/dial/strap detail at all, set
-  visual_fingerprint to null entirely rather than guessing at any of its fields.
+- Prefer nulling individual fields over nulling the whole block: if the dial is visible but the strap is
+  out of frame, still report dial fields and leave only strap_or_bracelet fields null. Only set
+  visual_fingerprint to null entirely when the watch itself cannot be assessed at all (e.g. a hand or
+  object fully covers it) — not merely because one section among case/dial/strap is missing.
 - Lower confidence_score when the image is blurry, partial, or ambiguous.
 - Set additional_image_hint only when confidence_score < 0.85; otherwise null.
 - Output ONLY the JSON object, no markdown, no prose.`;
@@ -142,8 +146,11 @@ Return STRICT JSON only, matching this schema exactly:
       "color": string | null,
       "material": string | null
     },
-    "complications_visible": string[]    // plain labels only, e.g. ["date window"]. NEVER state a
-                                          // position (e.g. "at 3 o'clock") or an exact sub-dial count.
+    "complications_visible": string[]    // plain labels only, e.g. ["date window"]. Use [] if none are
+                                          // visible — never invent one just to avoid an empty array.
+                                          // NEVER state a position (e.g. "at 3 o'clock") or an exact
+                                          // sub-dial count — those are precise spatial claims you are
+                                          // prone to inventing.
   },
   "visual_fingerprint_confidence": number // 0..1 confidence in visual_fingerprint, independent of
                                           // confidence_score
@@ -165,8 +172,10 @@ Rules:
   authenticity_caution toward "review_suggested" or "high_caution".
 - Every visual_fingerprint field is null if not clearly visible — never guess a specific value with no
   visual basis, the same discipline already applied to reference_number.
-- If the whole watch is too obscured, blurry, or partial to assess case/dial/strap detail at all, set
-  visual_fingerprint to null entirely rather than guessing at any of its fields.
+- Prefer nulling individual fields over nulling the whole block: if the dial is visible but the strap is
+  out of frame, still report dial fields and leave only strap_or_bracelet fields null. Only set
+  visual_fingerprint to null entirely when the watch itself cannot be assessed at all (e.g. a hand or
+  object fully covers it) — not merely because one section among case/dial/strap is missing.
 - Lower confidence_score when either image is blurry, partial, or ambiguous.
 - Set additional_image_hint only when confidence_score < 0.85; otherwise null.
 - Output ONLY the JSON object, no markdown, no prose.`;
