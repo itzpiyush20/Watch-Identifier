@@ -73,7 +73,6 @@ const styles = StyleSheet.create({
   subtitle: { ...typography.body, color: colors.gold, fontSize: 14 },
   list: {
     gap: spacing.sm,
-    marginTop: spacing.sm,
   },
   row: {
     flexDirection: "row",
@@ -92,7 +91,7 @@ const styles = StyleSheet.create({
   thumbEmoji: { fontSize: 20 },
   rowInfo: { flex: 1, gap: 2 },
   rowBrand: { ...typography.label, color: colors.gold, fontSize: 13 },
-  rowModel: { ...typography.body, color: colors.textPrimary, fontSize: 14 },
+  rowModel: { ...typography.body, color: colors.textPrimary, fontSize: 14, lineHeight: 18 },
   bestForPill: {
     alignSelf: "flex-start",
     borderColor: colors.goldMuted,
