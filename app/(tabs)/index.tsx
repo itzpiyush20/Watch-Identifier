@@ -59,7 +59,7 @@ export default function HomeScreen() {
         request_id: entry.id,
       };
 
-      setResult(response, entry.image_uri);
+      setResult(response, entry.image_uri, entry.id);
       router.push("/results");
     } catch (e) {
       console.error("[HomeScreen] Failed to parse portfolio entry:", e);
