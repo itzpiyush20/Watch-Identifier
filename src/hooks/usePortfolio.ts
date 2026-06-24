@@ -5,8 +5,10 @@ import {
   listPortfolioEntries,
   insertPortfolioEntry,
   deletePortfolioEntry,
+  updatePortfolioEntry,
   serializeMarketData,
   serializeAuthenticityCaution,
+  type ManualEnrichmentUpdate,
 } from "@/database";
 import { syncPortfolio } from "@/services/syncService";
 import { useDatabase } from "./useDatabase";
@@ -20,6 +22,7 @@ interface UsePortfolioReturn {
     userId: string | null
   ) => Promise<string>;
   remove: (id: string) => Promise<void>;
+  update: (id: string, updates: ManualEnrichmentUpdate) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -103,5 +106,14 @@ export function usePortfolio(userId?: string | null): UsePortfolioReturn {
     [db, refresh]
   );
 
-  return { entries, loading, save, remove, refresh };
+  const update = useCallback(
+    async (id: string, updates: ManualEnrichmentUpdate) => {
+      if (!db) throw new Error("Database not ready");
+      await updatePortfolioEntry(db, id, updates);
+      await refresh();
+    },
+    [db, refresh]
+  );
+
+  return { entries, loading, save, remove, update, refresh };
 }
