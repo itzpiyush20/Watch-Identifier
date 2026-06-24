@@ -38,16 +38,40 @@ export const AuthenticityCautionSchema = z.object({
 });
 export type AuthenticityCaution = z.infer<typeof AuthenticityCautionSchema>;
 
+export const VisualFingerprintSchema = z.object({
+  case: z.object({
+    shape: z.string().nullable(),
+    material_appearance: z.string().nullable(),
+    bezel_type: z.string().nullable(),
+  }),
+  dial: z.object({
+    primary_color: z.string().nullable(),
+    texture_pattern: z.string().nullable(),
+    hour_markers_type: z.string().nullable(),
+    hands_style: z.string().nullable(),
+  }),
+  strap_or_bracelet: z.object({
+    type: z.string().nullable(),
+    color: z.string().nullable(),
+    material: z.string().nullable(),
+  }),
+  complications_visible: z.array(z.string()).max(6),
+});
+export type VisualFingerprint = z.infer<typeof VisualFingerprintSchema>;
+
 export const IdentificationSchema = z.object({
   brand: z.string(),
   model_family: z.string(),
   reference_number: z.string().nullable(),
   search_string: z.string(),
+  search_queries: z.array(z.string()).min(1),
   confidence_score: z.number().min(0).max(1),
   possible_matches: z.array(PossibleMatchSchema),
   authenticity_caution: AuthenticityCautionSchema,
   verification_required: z.boolean(),
   additional_image_hint: z.string().nullable(),
+  visual_fingerprint: VisualFingerprintSchema.nullable(),
+  visual_fingerprint_confidence: z.number().min(0).max(1),
 });
 export type Identification = z.infer<typeof IdentificationSchema>;
 
@@ -153,4 +177,14 @@ export interface PortfolioEntry {
   scanned_at: number; // epoch ms
   synced: 0 | 1;
   expires_at: number | null;
+  // Manual enrichment fields (Phase 1) — all nullable, filled in via the
+  // Edit Details screen after a watch is saved. Never required to save.
+  collection_name?: string | null;
+  purchase_date?: string | null; // "YYYY-MM-DD", not a timestamp
+  purchase_price?: number | null;
+  purchase_currency?: string | null; // ISO 4217, set when purchase_price is set
+  condition?: string | null; // one of: New, Unworn, Excellent, Very Good, Good, Fair, Poor
+  ownership_status?: string | null; // one of: Currently Owned, Previously Owned, Wishlist
+  box_available?: 0 | 1 | null;
+  papers_available?: 0 | 1 | null;
 }

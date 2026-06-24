@@ -24,7 +24,6 @@ import { track } from "@/services/analytics";
 import { useScanCache } from "@/hooks/useScanCache";
 import { useScanStore } from "@/store/scanStore";
 import { useAuth } from "@/hooks/useAuth";
-import { usePortfolio } from "@/hooks/usePortfolio";
 import { useCountryCode } from "@/hooks/useCountryCode";
 
 const { height: SCREEN_H } = Dimensions.get("window");
@@ -52,7 +51,6 @@ export function ScanScreen() {
 
   const { session, user } = useAuth();
   const { countryCode } = useCountryCode();
-  const { save: saveToPortfolio } = usePortfolio(user?.id);
   const scanCache = useScanCache();
   const setResult = useScanStore((s) => s.setResult);
 
@@ -94,11 +92,6 @@ export function ScanScreen() {
       const hash = await hashImageBase64(processedFront.base64, processedBack?.base64);
       const cached = await scanCache.get(hash);
       if (cached) {
-        try {
-          await saveToPortfolio(cached, processedFront.uri, user?.id ?? null);
-        } catch (err) {
-          console.error("[ScanScreen] Failed to save cached result to portfolio:", err);
-        }
         setResult(cached, processedFront.uri);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.push("/results");
@@ -117,11 +110,6 @@ export function ScanScreen() {
           userId: user?.id,
         });
         await scanCache.set(hash, result);
-        try {
-          await saveToPortfolio(result, processedFront.uri, user?.id ?? null);
-        } catch (err) {
-          console.error("[ScanScreen] Failed to save scan result to portfolio:", err);
-        }
         setResult(result, processedFront.uri);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.push("/results");
@@ -135,7 +123,7 @@ export function ScanScreen() {
         resetCapture();
       }
     },
-    [scanCache, setResult, router, session, user, saveToPortfolio, resetCapture, countryCode]
+    [scanCache, setResult, router, session, user, resetCapture, countryCode]
   );
 
   /** Routes a freshly captured/picked image to the right step of the flow. */

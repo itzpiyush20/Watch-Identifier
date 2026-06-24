@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
     // 6. Market range (best-effort; never blocks identification result).
     const market = await marketProvider.getRange({
-      searchString: identification.search_string,
+      searchStrings: identification.search_queries,
       region,
     });
 

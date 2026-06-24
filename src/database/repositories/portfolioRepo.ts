@@ -14,12 +14,22 @@ type RawRow = {
   scanned_at: number;
   synced: number;
   expires_at: number | null;
+  collection_name: string | null;
+  purchase_date: string | null;
+  purchase_price: number | null;
+  purchase_currency: string | null;
+  condition: string | null;
+  ownership_status: string | null;
+  box_available: number | null;
+  papers_available: number | null;
 };
 
 function rowToEntry(row: RawRow): PortfolioEntry {
   return {
     ...row,
     synced: (row.synced === 1 ? 1 : 0) as 0 | 1,
+    box_available: row.box_available === 1 ? 1 : row.box_available === 0 ? 0 : null,
+    papers_available: row.papers_available === 1 ? 1 : row.papers_available === 0 ? 0 : null,
   };
 }
 
@@ -83,6 +93,44 @@ export async function deletePortfolioEntry(
   id: string
 ): Promise<void> {
   await db.runAsync("DELETE FROM local_portfolio WHERE id = ?;", [id]);
+}
+
+export type ManualEnrichmentUpdate = Partial<
+  Pick<
+    PortfolioEntry,
+    | "brand"
+    | "model_family"
+    | "reference_number"
+    | "collection_name"
+    | "purchase_date"
+    | "purchase_price"
+    | "purchase_currency"
+    | "condition"
+    | "ownership_status"
+    | "box_available"
+    | "papers_available"
+  >
+>;
+
+/**
+ * Updates a portfolio entry's editable fields and resets synced to 0, so
+ * the next sync pass pushes the change to Supabase — without this,
+ * editing an already-synced row would never reach the cloud, since
+ * syncPortfolio only ever looks at synced = 0 rows.
+ */
+export async function updatePortfolioEntry(
+  db: SQLiteDatabase,
+  id: string,
+  updates: ManualEnrichmentUpdate
+): Promise<void> {
+  const fields = Object.keys(updates) as (keyof ManualEnrichmentUpdate)[];
+  if (fields.length === 0) return;
+  const setClause = fields.map((f) => `${f} = ?`).join(", ");
+  const values = fields.map((f) => updates[f] ?? null);
+  await db.runAsync(
+    `UPDATE local_portfolio SET ${setClause}, synced = 0 WHERE id = ?;`,
+    [...values, id]
+  );
 }
 
 /** Returns all rows that have not yet been synced to Supabase. */

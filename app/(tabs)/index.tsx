@@ -8,9 +8,11 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, typography, radius } from "@/theme";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortfolio } from "@/hooks/usePortfolio";
@@ -18,7 +20,11 @@ import { useEntitlement } from "@/hooks/useEntitlement";
 import { useScanStore } from "@/store/scanStore";
 import { formatCurrency } from "@/utils/format";
 import { getDeviceCurrency } from "@/utils/format";
-import type { PortfolioEntry, IdentifyResponse } from "@/types";
+import type { PortfolioEntry, IdentifyResponse, Identification, MarketRange } from "@/types";
+import { CollectionShareCard } from "@/components/share/CollectionShareCard";
+import { WatchShareCard } from "@/components/share/WatchShareCard";
+import { captureAndShare } from "@/services/share";
+import { supabase } from "@/services/supabase";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;
@@ -26,7 +32,7 @@ const CARD_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { entries: allEntries, loading } = usePortfolio(user?.id);
+  const { entries: allEntries, loading, remove: removeEntry, refresh } = usePortfolio(user?.id);
   const { entitlement } = useEntitlement();
   const { setResult } = useScanStore();
 
@@ -47,24 +53,120 @@ export default function HomeScreen() {
           model_family: entry.model_family,
           reference_number: entry.reference_number,
           search_string: `${entry.brand} ${entry.model_family}`,
+          search_queries: [`${entry.brand} ${entry.model_family}`],
           confidence_score: entry.confidence_score,
           possible_matches: [],
           authenticity_caution: authenticity,
           verification_required:
             entry.confidence_score < 0.85 || entry.reference_number != null,
           additional_image_hint: null,
+          visual_fingerprint: null,
+          visual_fingerprint_confidence: 0,
         },
         market: market,
         cached: true,
         request_id: entry.id,
       };
 
-      setResult(response, entry.image_uri);
+      setResult(response, entry.image_uri, entry.id);
       router.push("/results");
     } catch (e) {
       console.error("[HomeScreen] Failed to parse portfolio entry:", e);
     }
   };
+
+  const [shareTarget, setShareTarget] = React.useState<{
+    entry: PortfolioEntry;
+    identification: Identification;
+    market: MarketRange;
+  } | null>(null);
+  const cardShareRef = React.useRef<View>(null);
+  const shareTargetIdRef = React.useRef<string | null>(null);
+
+  const handleDeleteEntry = (entry: PortfolioEntry) => {
+    Alert.alert(
+      "Delete from Collection",
+      `Remove ${entry.brand} ${entry.model_family} from your collection? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await removeEntry(entry.id);
+              if (entry.synced === 1) {
+                try {
+                  await supabase.from("portfolio").delete().eq("id", entry.id);
+                } catch (err) {
+                  console.error("[HomeScreen] Best-effort remote delete failed:", err);
+                }
+              }
+            } catch (err) {
+              console.error("[HomeScreen] Failed to delete entry:", err);
+              Alert.alert("Error", "Failed to delete. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCardLongPress = (entry: PortfolioEntry) => {
+    Alert.alert(entry.brand, entry.model_family, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Share",
+        onPress: () => {
+          try {
+            const identification: Identification = {
+              brand: entry.brand,
+              model_family: entry.model_family,
+              reference_number: entry.reference_number,
+              search_string: `${entry.brand} ${entry.model_family}`,
+              search_queries: [`${entry.brand} ${entry.model_family}`],
+              confidence_score: entry.confidence_score,
+              possible_matches: [],
+              authenticity_caution: JSON.parse(entry.authenticity_caution),
+              verification_required: false,
+              additional_image_hint: null,
+              visual_fingerprint: null,
+              visual_fingerprint_confidence: 0,
+            };
+            const market: MarketRange = JSON.parse(entry.market_data_json);
+            shareTargetIdRef.current = entry.id;
+            setShareTarget({ entry, identification, market });
+          } catch (err) {
+            console.error("[HomeScreen] Failed to parse entry for sharing:", err);
+            Alert.alert("Error", "Failed to prepare this watch for sharing.");
+          }
+        },
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => handleDeleteEntry(entry),
+      },
+    ]);
+  };
+
+  React.useEffect(() => {
+    if (!shareTarget) return;
+    const targetId = shareTarget.entry.id;
+    const run = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50)); // let the off-screen card render with the new target
+      if (shareTargetIdRef.current !== targetId) return; // a newer long-press superseded this one
+      await captureAndShare(
+        cardShareRef,
+        `${shareTarget.entry.brand}-${shareTarget.entry.model_family}`
+      );
+      if (shareTargetIdRef.current === targetId) {
+        shareTargetIdRef.current = null;
+        setShareTarget(null);
+      }
+    };
+    void run();
+  }, [shareTarget]);
 
   const getCollectionValue = () => {
     return entries.reduce((sum, entry) => {
@@ -77,6 +179,18 @@ export default function HomeScreen() {
     }, 0);
   };
 
+  const collectionShareRef = React.useRef<View>(null);
+
+  const handleShareCollection = async () => {
+    await captureAndShare(collectionShareRef, "my-watch-collection");
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      void refresh();
+    }, [refresh])
+  );
+
   const renderItem = ({ item }: { item: PortfolioEntry }) => {
     let medianPrice = "—";
     try {
@@ -87,7 +201,11 @@ export default function HomeScreen() {
     } catch {}
 
     return (
-      <Pressable style={styles.card} onPress={() => handleCardPress(item)}>
+      <Pressable
+        style={styles.card}
+        onPress={() => handleCardPress(item)}
+        onLongPress={() => handleCardLongPress(item)}
+      >
         <View style={styles.imageContainer}>
           {item.image_uri ? (
             <Image source={{ uri: item.image_uri }} style={styles.cardImage} />
@@ -147,6 +265,9 @@ export default function HomeScreen() {
               <Text style={styles.statsValue}>{entries.length}</Text>
             </View>
           </View>
+          <Pressable style={styles.shareCollectionBtn} onPress={handleShareCollection}>
+            <Text style={styles.shareCollectionBtnText}>Share Collection</Text>
+          </Pressable>
         </View>
       )}
 
@@ -187,6 +308,26 @@ export default function HomeScreen() {
         <Pressable style={styles.fab} onPress={() => router.push("/scan")}>
           <Text style={styles.fabText}>+ Scan</Text>
         </Pressable>
+      )}
+
+      <View style={styles.offscreen} pointerEvents="none">
+        <CollectionShareCard
+          ref={collectionShareRef}
+          entries={entries}
+          totalValue={getCollectionValue()}
+          currency={getDeviceCurrency()}
+        />
+      </View>
+
+      {shareTarget && (
+        <View style={styles.offscreen} pointerEvents="none">
+          <WatchShareCard
+            ref={cardShareRef}
+            identification={shareTarget.identification}
+            market={shareTarget.market}
+            imageUri={shareTarget.entry.image_uri}
+          />
+        </View>
       )}
     </SafeAreaView>
   );
@@ -240,6 +381,19 @@ const styles = StyleSheet.create({
   },
   statsLabel: { ...typography.label, color: colors.textTertiary, fontSize: 10 },
   statsValue: { ...typography.heading, color: colors.gold, fontSize: 20 },
+  shareCollectionBtn: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    alignItems: "center",
+  },
+  shareCollectionBtnText: { ...typography.label, color: colors.gold, fontSize: 13 },
+  offscreen: {
+    position: "absolute",
+    top: -9999,
+    left: -9999,
+  },
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: 90,

@@ -60,6 +60,21 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 3,
+    async up(db) {
+      await db.execAsync(`
+        ALTER TABLE local_portfolio ADD COLUMN collection_name TEXT;
+        ALTER TABLE local_portfolio ADD COLUMN purchase_date TEXT;
+        ALTER TABLE local_portfolio ADD COLUMN purchase_price REAL;
+        ALTER TABLE local_portfolio ADD COLUMN purchase_currency TEXT;
+        ALTER TABLE local_portfolio ADD COLUMN condition TEXT;
+        ALTER TABLE local_portfolio ADD COLUMN ownership_status TEXT;
+        ALTER TABLE local_portfolio ADD COLUMN box_available INTEGER;
+        ALTER TABLE local_portfolio ADD COLUMN papers_available INTEGER;
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {

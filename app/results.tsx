@@ -10,20 +10,27 @@ import {
   Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useScanStore } from "@/store/scanStore";
 import { useRemoteConfig } from "@/hooks/useRemoteConfig";
 import { useAuth } from "@/hooks/useAuth";
+import { usePortfolio } from "@/hooks/usePortfolio";
 import { colors, spacing, typography, radius } from "@/theme";
 import { formatCurrency } from "@/utils/format";
 import { track } from "@/services/analytics";
+import { WatchShareCard } from "@/components/share/WatchShareCard";
+import { captureAndShare } from "@/services/share";
 
 export default function ResultsScreen() {
   const router = useRouter();
-  const { result, imageUri, clear } = useScanStore();
+  const { result, imageUri, savedEntryId, setSavedEntryId, clear } = useScanStore();
   const config = useRemoteConfig();
-  const { session } = useAuth();
+  const { session, user } = useAuth();
+  const { save: saveToPortfolio, remove: removeFromPortfolio } = usePortfolio(user?.id);
   const [rating, setRating] = React.useState<"up" | "down" | null>(null);
+  const [savingState, setSavingState] = React.useState<"idle" | "saving">("idle");
+  const shareCardRef = React.useRef<View>(null);
 
   if (!result) {
     return (
@@ -34,6 +41,10 @@ export default function ResultsScreen() {
   }
 
   const { identification, market, request_id } = result;
+
+  const handleShare = async () => {
+    await captureAndShare(shareCardRef, `${identification.brand}-${identification.model_family}`);
+  };
 
   // Determine confidence color and label
   const getConfidenceLevel = (score: number) => {
@@ -94,6 +105,44 @@ export default function ResultsScreen() {
       },
       session?.access_token
     );
+  };
+
+  const handleToggleCollection = async () => {
+    if (savingState === "saving") return;
+    if (savedEntryId == null) {
+      setSavingState("saving");
+      try {
+        const id = await saveToPortfolio(result, imageUri, user?.id ?? null);
+        setSavedEntryId(id);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (err) {
+        console.error("[Results] Failed to save to collection:", err);
+        Alert.alert("Error", "Failed to add to collection. Please try again.");
+      } finally {
+        setSavingState("idle");
+      }
+    } else {
+      Alert.alert(
+        "Remove from Collection",
+        "This removes the watch from your collection. This cannot be undone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await removeFromPortfolio(savedEntryId);
+                setSavedEntryId(null);
+              } catch (err) {
+                console.error("[Results] Failed to remove from collection:", err);
+                Alert.alert("Error", "Failed to remove from collection. Please try again.");
+              }
+            },
+          },
+        ]
+      );
+    }
   };
 
   const hasCaution = identification.authenticity_caution.level !== "none";
@@ -212,6 +261,92 @@ export default function ResultsScreen() {
           </View>
         )}
 
+        {/* Specifications */}
+        {identification.visual_fingerprint && (
+          <View style={styles.specsCard}>
+            <Text style={styles.kicker}>SPECIFICATIONS</Text>
+            {identification.visual_fingerprint.case.shape && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Case shape</Text>
+                <Text style={styles.specValue}>{identification.visual_fingerprint.case.shape}</Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.case.material_appearance && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Case material</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.case.material_appearance}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.case.bezel_type && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Bezel type</Text>
+                <Text style={styles.specValue}>{identification.visual_fingerprint.case.bezel_type}</Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.dial.primary_color && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Dial color</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.dial.primary_color}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.dial.texture_pattern && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Dial texture</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.dial.texture_pattern}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.dial.hour_markers_type && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Hour markers</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.dial.hour_markers_type}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.dial.hands_style && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Hands style</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.dial.hands_style}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.strap_or_bracelet.type && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Strap/bracelet</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.strap_or_bracelet.type}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.strap_or_bracelet.material && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Strap material</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.strap_or_bracelet.material}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.complications_visible.length > 0 && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Complications</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.complications_visible.join(", ")}
+                </Text>
+              </View>
+            )}
+            <Text style={styles.disclaimer}>
+              AI-estimated from photos; verify before purchase or insurance decisions.
+            </Text>
+          </View>
+        )}
+
         {/* Result Rating */}
         <View style={styles.ratingCard}>
           <Text style={styles.ratingTitle}>Was this identification correct?</Text>
@@ -261,6 +396,35 @@ export default function ResultsScreen() {
 
       {/* Footer controls */}
       <View style={styles.actions}>
+        <Pressable style={styles.shareBtn} onPress={handleShare}>
+          <Text style={styles.shareBtnText}>Share</Text>
+        </Pressable>
+        {savedEntryId != null && (
+          <Pressable
+            style={styles.editBtn}
+            onPress={() => router.push("/edit-watch")}
+          >
+            <Text style={styles.editBtnText}>Edit Details</Text>
+          </Pressable>
+        )}
+        <Pressable
+          style={[styles.collectionBtn, savedEntryId != null && styles.collectionBtnSaved]}
+          onPress={handleToggleCollection}
+          disabled={savingState === "saving"}
+        >
+          <Text
+            style={[
+              styles.collectionBtnText,
+              savedEntryId != null && styles.collectionBtnTextSaved,
+            ]}
+          >
+            {savingState === "saving"
+              ? "Saving…"
+              : savedEntryId != null
+                ? "Remove from Collection"
+                : "Add to Collection"}
+          </Text>
+        </Pressable>
         <Pressable
           style={styles.scanBtn}
           onPress={() => {
@@ -270,6 +434,15 @@ export default function ResultsScreen() {
         >
           <Text style={styles.scanBtnText}>Scan Another</Text>
         </Pressable>
+      </View>
+
+      <View style={styles.offscreen} pointerEvents="none">
+        <WatchShareCard
+          ref={shareCardRef}
+          identification={identification}
+          market={market}
+          imageUri={imageUri}
+        />
       </View>
     </SafeAreaView>
   );
@@ -454,6 +627,26 @@ const styles = StyleSheet.create({
   },
   ratingBtnText: { ...typography.label, color: colors.textPrimary, fontSize: 14 },
 
+  // Specifications Card
+  specsCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  specRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  specLabel: { ...typography.caption, color: colors.textTertiary, fontSize: 12 },
+  specValue: { ...typography.body, color: colors.textPrimary, fontSize: 13, textAlign: "right", flex: 1, marginLeft: spacing.sm },
+
   // Alternatives Card
   matchesCard: {
     backgroundColor: colors.surface,
@@ -494,4 +687,39 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   scanBtnText: { ...typography.label, color: colors.textOnGold },
+  collectionBtn: {
+    backgroundColor: "transparent",
+    borderColor: colors.gold,
+    borderWidth: 1.5,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  collectionBtnSaved: {
+    borderColor: colors.danger,
+  },
+  collectionBtnText: { ...typography.label, color: colors.gold },
+  collectionBtnTextSaved: { color: colors.danger },
+  shareBtn: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  shareBtnText: { ...typography.label, color: colors.textPrimary },
+  editBtn: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  editBtnText: { ...typography.label, color: colors.gold },
+  offscreen: {
+    position: "absolute",
+    top: -9999,
+    left: -9999,
+  },
 });
