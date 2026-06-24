@@ -75,6 +75,14 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 4,
+    async up(db) {
+      await db.execAsync(`
+        ALTER TABLE local_portfolio ADD COLUMN best_for TEXT;
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
