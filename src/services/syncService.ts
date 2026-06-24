@@ -43,6 +43,7 @@ export async function syncPortfolio(
       ownership_status: entry.ownership_status ?? null,
       box_available: entry.box_available ?? null,
       papers_available: entry.papers_available ?? null,
+      best_for: entry.best_for ?? null,
     }));
 
     const { error } = await supabase
