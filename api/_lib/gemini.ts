@@ -25,6 +25,28 @@ const GeminiRawSchema = z.object({
     note: z.string(),
   }),
   additional_image_hint: z.string().nullable(),
+  visual_fingerprint: z
+    .object({
+      case: z.object({
+        shape: z.string().nullable(),
+        material_appearance: z.string().nullable(),
+        bezel_type: z.string().nullable(),
+      }),
+      dial: z.object({
+        primary_color: z.string().nullable(),
+        texture_pattern: z.string().nullable(),
+        hour_markers_type: z.string().nullable(),
+        hands_style: z.string().nullable(),
+      }),
+      strap_or_bracelet: z.object({
+        type: z.string().nullable(),
+        color: z.string().nullable(),
+        material: z.string().nullable(),
+      }),
+      complications_visible: z.array(z.string()).max(6),
+    })
+    .nullable(),
+  visual_fingerprint_confidence: z.number().min(0).max(1),
 });
 
 const PROMPT_SINGLE = `You are an expert horologist. Identify the wristwatch in the image (the dial/front).
@@ -41,8 +63,31 @@ Return STRICT JSON only, matching this schema exactly:
     "level": "none" | "review_suggested" | "high_caution",
     "note": string                       // short, hedged observation; do not assert "fake"
   },
-  "additional_image_hint": string | null // ONE specific extra photo that would most raise confidence
+  "additional_image_hint": string | null, // ONE specific extra photo that would most raise confidence
                                           // (e.g. "macro shot of caseback engraving"), or null if not needed
+  "visual_fingerprint": {                // structural/visual detail, or null if too obscured to assess
+    "case": {
+      "shape": string | null,            // e.g. "Round", "Tonneau", "Rectangular"; null if unclear
+      "material_appearance": string | null, // e.g. "Stainless Steel", "Gold-plated"; null if unclear
+      "bezel_type": string | null        // e.g. "Fixed", "Rotating Diver", "Fluted"; null if unclear
+    },
+    "dial": {
+      "primary_color": string | null,
+      "texture_pattern": string | null,  // e.g. "Sunburst", "Matte", "Guilloche"; null if unclear
+      "hour_markers_type": string | null, // e.g. "Roman Numerals", "Baton Indices"; null if unclear
+      "hands_style": string | null       // e.g. "Dauphine", "Sword"; null if unclear
+    },
+    "strap_or_bracelet": {
+      "type": string | null,             // e.g. "Oyster Bracelet", "Leather Strap", "NATO Strap"
+      "color": string | null,
+      "material": string | null          // e.g. "Metal", "Leather", "Silicone"
+    },
+    "complications_visible": string[]    // plain labels only, e.g. ["date window"]. NEVER state a
+                                          // position (e.g. "at 3 o'clock") or an exact sub-dial count —
+                                          // those are precise spatial claims you are prone to inventing.
+  },
+  "visual_fingerprint_confidence": number // 0..1 confidence in the visual_fingerprint block specifically,
+                                          // independent of confidence_score (which is about brand/model)
 }
 Rules:
 - Weigh evidence in this order, highest first: (1) text/logo/wordmark printed or engraved on the dial,
@@ -55,6 +100,10 @@ Rules:
 - reference_number must be copied verbatim from text actually visible in the image. NEVER infer or
   pattern-match a reference number from the brand/model alone — if it is not legibly printed or engraved
   in the photo, use null.
+- Every visual_fingerprint field is null if not clearly visible — never guess a specific value with no
+  visual basis, the same discipline already applied to reference_number.
+- If the whole watch is too obscured, blurry, or partial to assess case/dial/strap detail at all, set
+  visual_fingerprint to null entirely rather than guessing at any of its fields.
 - Lower confidence_score when the image is blurry, partial, or ambiguous.
 - Set additional_image_hint only when confidence_score < 0.85; otherwise null.
 - Output ONLY the JSON object, no markdown, no prose.`;
@@ -74,8 +123,30 @@ Return STRICT JSON only, matching this schema exactly:
     "level": "none" | "review_suggested" | "high_caution",
     "note": string                       // short, hedged observation; do not assert "fake"
   },
-  "additional_image_hint": string | null // ONE specific extra photo that would most raise confidence
+  "additional_image_hint": string | null, // ONE specific extra photo that would most raise confidence
                                           // (e.g. "macro shot of the movement"), or null if not needed
+  "visual_fingerprint": {                // structural/visual detail, or null if too obscured to assess
+    "case": {
+      "shape": string | null,
+      "material_appearance": string | null,
+      "bezel_type": string | null
+    },
+    "dial": {
+      "primary_color": string | null,
+      "texture_pattern": string | null,
+      "hour_markers_type": string | null,
+      "hands_style": string | null
+    },
+    "strap_or_bracelet": {
+      "type": string | null,
+      "color": string | null,
+      "material": string | null
+    },
+    "complications_visible": string[]    // plain labels only, e.g. ["date window"]. NEVER state a
+                                          // position (e.g. "at 3 o'clock") or an exact sub-dial count.
+  },
+  "visual_fingerprint_confidence": number // 0..1 confidence in visual_fingerprint, independent of
+                                          // confidence_score
 }
 Rules:
 - Weigh evidence in this order, highest first: (1) text/logo/wordmark printed or engraved on the dial,
@@ -92,6 +163,10 @@ Rules:
   style stamps, engraving quality and font consistency, and whether case-back text/markings plausibly match
   the brand read from the front. Inconsistency between front branding and case-back markings should raise
   authenticity_caution toward "review_suggested" or "high_caution".
+- Every visual_fingerprint field is null if not clearly visible — never guess a specific value with no
+  visual basis, the same discipline already applied to reference_number.
+- If the whole watch is too obscured, blurry, or partial to assess case/dial/strap detail at all, set
+  visual_fingerprint to null entirely rather than guessing at any of its fields.
 - Lower confidence_score when either image is blurry, partial, or ambiguous.
 - Set additional_image_hint only when confidence_score < 0.85; otherwise null.
 - Output ONLY the JSON object, no markdown, no prose.`;
