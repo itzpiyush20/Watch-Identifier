@@ -22,6 +22,7 @@ type RawRow = {
   ownership_status: string | null;
   box_available: number | null;
   papers_available: number | null;
+  best_for: string | null;
 };
 
 function rowToEntry(row: RawRow): PortfolioEntry {
@@ -109,6 +110,7 @@ export type ManualEnrichmentUpdate = Partial<
     | "ownership_status"
     | "box_available"
     | "papers_available"
+    | "best_for"
   >
 >;
 
