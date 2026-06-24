@@ -9,7 +9,7 @@ import * as Sharing from "expo-sharing";
  * Works generically across WhatsApp, Instagram, etc. — no per-platform SDK.
  */
 export async function captureAndShare(
-  ref: RefObject<View>,
+  ref: RefObject<View | null>,
   filename: string
 ): Promise<void> {
   try {

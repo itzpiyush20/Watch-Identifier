@@ -19,6 +19,8 @@ import { usePortfolio } from "@/hooks/usePortfolio";
 import { colors, spacing, typography, radius } from "@/theme";
 import { formatCurrency } from "@/utils/format";
 import { track } from "@/services/analytics";
+import { WatchShareCard } from "@/components/share/WatchShareCard";
+import { captureAndShare } from "@/services/share";
 
 export default function ResultsScreen() {
   const router = useRouter();
@@ -28,6 +30,7 @@ export default function ResultsScreen() {
   const { save: saveToPortfolio, remove: removeFromPortfolio } = usePortfolio(user?.id);
   const [rating, setRating] = React.useState<"up" | "down" | null>(null);
   const [savingState, setSavingState] = React.useState<"idle" | "saving">("idle");
+  const shareCardRef = React.useRef<View>(null);
 
   if (!result) {
     return (
@@ -38,6 +41,10 @@ export default function ResultsScreen() {
   }
 
   const { identification, market, request_id } = result;
+
+  const handleShare = async () => {
+    await captureAndShare(shareCardRef, `${identification.brand}-${identification.model_family}`);
+  };
 
   // Determine confidence color and label
   const getConfidenceLevel = (score: number) => {
@@ -303,6 +310,9 @@ export default function ResultsScreen() {
 
       {/* Footer controls */}
       <View style={styles.actions}>
+        <Pressable style={styles.shareBtn} onPress={handleShare}>
+          <Text style={styles.shareBtnText}>Share</Text>
+        </Pressable>
         <Pressable
           style={[styles.collectionBtn, savedEntryId != null && styles.collectionBtnSaved]}
           onPress={handleToggleCollection}
@@ -330,6 +340,15 @@ export default function ResultsScreen() {
         >
           <Text style={styles.scanBtnText}>Scan Another</Text>
         </Pressable>
+      </View>
+
+      <View style={styles.offscreen} pointerEvents="none">
+        <WatchShareCard
+          ref={shareCardRef}
+          identification={identification}
+          market={market}
+          imageUri={imageUri}
+        />
       </View>
     </SafeAreaView>
   );
@@ -568,4 +587,17 @@ const styles = StyleSheet.create({
   },
   collectionBtnText: { ...typography.label, color: colors.gold },
   collectionBtnTextSaved: { color: colors.danger },
+  shareBtn: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  shareBtnText: { ...typography.label, color: colors.textPrimary },
+  offscreen: {
+    position: "absolute",
+    top: -9999,
+    left: -9999,
+  },
 });
