@@ -10,20 +10,24 @@ import {
   Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useScanStore } from "@/store/scanStore";
 import { useRemoteConfig } from "@/hooks/useRemoteConfig";
 import { useAuth } from "@/hooks/useAuth";
+import { usePortfolio } from "@/hooks/usePortfolio";
 import { colors, spacing, typography, radius } from "@/theme";
 import { formatCurrency } from "@/utils/format";
 import { track } from "@/services/analytics";
 
 export default function ResultsScreen() {
   const router = useRouter();
-  const { result, imageUri, clear } = useScanStore();
+  const { result, imageUri, savedEntryId, setSavedEntryId, clear } = useScanStore();
   const config = useRemoteConfig();
-  const { session } = useAuth();
+  const { session, user } = useAuth();
+  const { save: saveToPortfolio, remove: removeFromPortfolio } = usePortfolio(user?.id);
   const [rating, setRating] = React.useState<"up" | "down" | null>(null);
+  const [savingState, setSavingState] = React.useState<"idle" | "saving">("idle");
 
   if (!result) {
     return (
@@ -94,6 +98,44 @@ export default function ResultsScreen() {
       },
       session?.access_token
     );
+  };
+
+  const handleToggleCollection = async () => {
+    if (savingState === "saving") return;
+    if (savedEntryId == null) {
+      setSavingState("saving");
+      try {
+        const id = await saveToPortfolio(result, imageUri, user?.id ?? null);
+        setSavedEntryId(id);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (err) {
+        console.error("[Results] Failed to save to collection:", err);
+        Alert.alert("Error", "Failed to add to collection. Please try again.");
+      } finally {
+        setSavingState("idle");
+      }
+    } else {
+      Alert.alert(
+        "Remove from Collection",
+        "This removes the watch from your collection. This cannot be undone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await removeFromPortfolio(savedEntryId);
+                setSavedEntryId(null);
+              } catch (err) {
+                console.error("[Results] Failed to remove from collection:", err);
+                Alert.alert("Error", "Failed to remove from collection. Please try again.");
+              }
+            },
+          },
+        ]
+      );
+    }
   };
 
   const hasCaution = identification.authenticity_caution.level !== "none";
@@ -261,6 +303,24 @@ export default function ResultsScreen() {
 
       {/* Footer controls */}
       <View style={styles.actions}>
+        <Pressable
+          style={[styles.collectionBtn, savedEntryId != null && styles.collectionBtnSaved]}
+          onPress={handleToggleCollection}
+          disabled={savingState === "saving"}
+        >
+          <Text
+            style={[
+              styles.collectionBtnText,
+              savedEntryId != null && styles.collectionBtnTextSaved,
+            ]}
+          >
+            {savingState === "saving"
+              ? "Saving…"
+              : savedEntryId != null
+                ? "Remove from Collection"
+                : "Add to Collection"}
+          </Text>
+        </Pressable>
         <Pressable
           style={styles.scanBtn}
           onPress={() => {
@@ -494,4 +554,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   scanBtnText: { ...typography.label, color: colors.textOnGold },
+  collectionBtn: {
+    backgroundColor: "transparent",
+    borderColor: colors.gold,
+    borderWidth: 1.5,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  collectionBtnSaved: {
+    borderColor: colors.danger,
+  },
+  collectionBtnText: { ...typography.label, color: colors.gold },
+  collectionBtnTextSaved: { color: colors.danger },
 });
