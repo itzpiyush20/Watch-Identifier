@@ -53,12 +53,15 @@ export default function HomeScreen() {
           model_family: entry.model_family,
           reference_number: entry.reference_number,
           search_string: `${entry.brand} ${entry.model_family}`,
+          search_queries: [`${entry.brand} ${entry.model_family}`],
           confidence_score: entry.confidence_score,
           possible_matches: [],
           authenticity_caution: authenticity,
           verification_required:
             entry.confidence_score < 0.85 || entry.reference_number != null,
           additional_image_hint: null,
+          visual_fingerprint: null,
+          visual_fingerprint_confidence: 0,
         },
         market: market,
         cached: true,
@@ -121,11 +124,14 @@ export default function HomeScreen() {
               model_family: entry.model_family,
               reference_number: entry.reference_number,
               search_string: `${entry.brand} ${entry.model_family}`,
+              search_queries: [`${entry.brand} ${entry.model_family}`],
               confidence_score: entry.confidence_score,
               possible_matches: [],
               authenticity_caution: JSON.parse(entry.authenticity_caution),
               verification_required: false,
               additional_image_hint: null,
+              visual_fingerprint: null,
+              visual_fingerprint_confidence: 0,
             };
             const market: MarketRange = JSON.parse(entry.market_data_json);
             shareTargetIdRef.current = entry.id;
