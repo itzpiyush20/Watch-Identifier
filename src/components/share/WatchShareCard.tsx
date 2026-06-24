@@ -9,13 +9,14 @@ interface WatchShareCardProps {
   identification: Identification;
   market: MarketRange;
   imageUri: string | null;
+  bestFor?: string | null;
 }
 
 const appName = (Constants.expoConfig?.name as string) ?? "The Watch Identifier";
 
 /** Fixed-layout branded card, rendered off-screen and captured to PNG for sharing. */
 export const WatchShareCard = forwardRef<View, WatchShareCardProps>(
-  ({ identification, market, imageUri }, ref) => {
+  ({ identification, market, imageUri, bestFor }, ref) => {
     return (
       <View ref={ref} style={styles.card} collapsable={false}>
         <View style={styles.imageWrap}>
@@ -31,6 +32,11 @@ export const WatchShareCard = forwardRef<View, WatchShareCardProps>(
         <Text style={styles.model}>{identification.model_family}</Text>
         {identification.reference_number && (
           <Text style={styles.ref}>Ref. {identification.reference_number}</Text>
+        )}
+        {bestFor && (
+          <View style={styles.bestForPill}>
+            <Text style={styles.bestForPillText}>{bestFor}</Text>
+          </View>
         )}
         {market.median_estimate != null && (
           <View style={styles.valueRow}>
@@ -71,6 +77,16 @@ const styles = StyleSheet.create({
   brand: { ...typography.display, color: colors.textPrimary, fontSize: 24 },
   model: { ...typography.title, color: colors.textSecondary, fontSize: 16 },
   ref: { ...typography.caption, color: colors.textTertiary, marginTop: 2 },
+  bestForPill: {
+    alignSelf: "flex-start",
+    borderColor: colors.goldMuted,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    marginTop: spacing.xs,
+  },
+  bestForPillText: { ...typography.caption, color: colors.goldMuted, fontSize: 11 },
   valueRow: { marginTop: spacing.sm },
   valueLabel: { ...typography.label, color: colors.goldMuted, fontSize: 10, letterSpacing: 1 },
   value: { ...typography.display, color: colors.gold, fontSize: 28 },
