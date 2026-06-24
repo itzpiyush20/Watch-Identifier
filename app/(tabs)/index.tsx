@@ -8,6 +8,7 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -20,7 +21,9 @@ import { formatCurrency } from "@/utils/format";
 import { getDeviceCurrency } from "@/utils/format";
 import type { PortfolioEntry, IdentifyResponse } from "@/types";
 import { CollectionShareCard } from "@/components/share/CollectionShareCard";
+import { WatchShareCard } from "@/components/share/WatchShareCard";
 import { captureAndShare } from "@/services/share";
+import { supabase } from "@/services/supabase";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;
@@ -28,7 +31,7 @@ const CARD_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { entries: allEntries, loading } = usePortfolio(user?.id);
+  const { entries: allEntries, loading, remove: removeEntry } = usePortfolio(user?.id);
   const { entitlement } = useEntitlement();
   const { setResult } = useScanStore();
 
@@ -68,6 +71,63 @@ export default function HomeScreen() {
     }
   };
 
+  const [shareTarget, setShareTarget] = React.useState<PortfolioEntry | null>(null);
+  const cardShareRef = React.useRef<View>(null);
+
+  const handleDeleteEntry = (entry: PortfolioEntry) => {
+    Alert.alert(
+      "Delete from Collection",
+      `Remove ${entry.brand} ${entry.model_family} from your collection? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await removeEntry(entry.id);
+              if (entry.synced === 1) {
+                try {
+                  await supabase.from("portfolio").delete().eq("id", entry.id);
+                } catch (err) {
+                  console.error("[HomeScreen] Best-effort remote delete failed:", err);
+                }
+              }
+            } catch (err) {
+              console.error("[HomeScreen] Failed to delete entry:", err);
+              Alert.alert("Error", "Failed to delete. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCardLongPress = (entry: PortfolioEntry) => {
+    Alert.alert(entry.brand, entry.model_family, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Share",
+        onPress: () => setShareTarget(entry),
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => handleDeleteEntry(entry),
+      },
+    ]);
+  };
+
+  React.useEffect(() => {
+    if (!shareTarget) return;
+    const run = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50)); // let the off-screen card render with the new target
+      await captureAndShare(cardShareRef, `${shareTarget.brand}-${shareTarget.model_family}`);
+      setShareTarget(null);
+    };
+    void run();
+  }, [shareTarget]);
+
   const getCollectionValue = () => {
     return entries.reduce((sum, entry) => {
       try {
@@ -95,7 +155,11 @@ export default function HomeScreen() {
     } catch {}
 
     return (
-      <Pressable style={styles.card} onPress={() => handleCardPress(item)}>
+      <Pressable
+        style={styles.card}
+        onPress={() => handleCardPress(item)}
+        onLongPress={() => handleCardLongPress(item)}
+      >
         <View style={styles.imageContainer}>
           {item.image_uri ? (
             <Image source={{ uri: item.image_uri }} style={styles.cardImage} />
@@ -208,6 +272,27 @@ export default function HomeScreen() {
           currency={getDeviceCurrency()}
         />
       </View>
+
+      {shareTarget && (
+        <View style={styles.offscreen} pointerEvents="none">
+          <WatchShareCard
+            ref={cardShareRef}
+            identification={{
+              brand: shareTarget.brand,
+              model_family: shareTarget.model_family,
+              reference_number: shareTarget.reference_number,
+              search_string: `${shareTarget.brand} ${shareTarget.model_family}`,
+              confidence_score: shareTarget.confidence_score,
+              possible_matches: [],
+              authenticity_caution: JSON.parse(shareTarget.authenticity_caution),
+              verification_required: false,
+              additional_image_hint: null,
+            }}
+            market={JSON.parse(shareTarget.market_data_json)}
+            imageUri={shareTarget.image_uri}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
