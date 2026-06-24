@@ -153,4 +153,14 @@ export interface PortfolioEntry {
   scanned_at: number; // epoch ms
   synced: 0 | 1;
   expires_at: number | null;
+  // Manual enrichment fields (Phase 1) — all nullable, filled in via the
+  // Edit Details screen after a watch is saved. Never required to save.
+  collection_name?: string | null;
+  purchase_date?: string | null; // "YYYY-MM-DD", not a timestamp
+  purchase_price?: number | null;
+  purchase_currency?: string | null; // ISO 4217, set when purchase_price is set
+  condition?: string | null; // one of: New, Unworn, Excellent, Very Good, Good, Fair, Poor
+  ownership_status?: string | null; // one of: Currently Owned, Previously Owned, Wishlist
+  box_available?: 0 | 1 | null;
+  papers_available?: 0 | 1 | null;
 }
