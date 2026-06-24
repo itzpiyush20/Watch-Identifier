@@ -261,6 +261,92 @@ export default function ResultsScreen() {
           </View>
         )}
 
+        {/* Specifications */}
+        {identification.visual_fingerprint && (
+          <View style={styles.specsCard}>
+            <Text style={styles.kicker}>SPECIFICATIONS</Text>
+            {identification.visual_fingerprint.case.shape && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Case shape</Text>
+                <Text style={styles.specValue}>{identification.visual_fingerprint.case.shape}</Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.case.material_appearance && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Case material</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.case.material_appearance}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.case.bezel_type && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Bezel type</Text>
+                <Text style={styles.specValue}>{identification.visual_fingerprint.case.bezel_type}</Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.dial.primary_color && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Dial color</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.dial.primary_color}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.dial.texture_pattern && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Dial texture</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.dial.texture_pattern}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.dial.hour_markers_type && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Hour markers</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.dial.hour_markers_type}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.dial.hands_style && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Hands style</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.dial.hands_style}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.strap_or_bracelet.type && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Strap/bracelet</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.strap_or_bracelet.type}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.strap_or_bracelet.material && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Strap material</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.strap_or_bracelet.material}
+                </Text>
+              </View>
+            )}
+            {identification.visual_fingerprint.complications_visible.length > 0 && (
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Complications</Text>
+                <Text style={styles.specValue}>
+                  {identification.visual_fingerprint.complications_visible.join(", ")}
+                </Text>
+              </View>
+            )}
+            <Text style={styles.disclaimer}>
+              AI-estimated from photos; verify before purchase or insurance decisions.
+            </Text>
+          </View>
+        )}
+
         {/* Result Rating */}
         <View style={styles.ratingCard}>
           <Text style={styles.ratingTitle}>Was this identification correct?</Text>
@@ -540,6 +626,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ratingBtnText: { ...typography.label, color: colors.textPrimary, fontSize: 14 },
+
+  // Specifications Card
+  specsCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  specRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  specLabel: { ...typography.caption, color: colors.textTertiary, fontSize: 12 },
+  specValue: { ...typography.body, color: colors.textPrimary, fontSize: 13, textAlign: "right", flex: 1, marginLeft: spacing.sm },
 
   // Alternatives Card
   matchesCard: {
