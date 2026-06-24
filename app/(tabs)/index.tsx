@@ -19,7 +19,7 @@ import { useEntitlement } from "@/hooks/useEntitlement";
 import { useScanStore } from "@/store/scanStore";
 import { formatCurrency } from "@/utils/format";
 import { getDeviceCurrency } from "@/utils/format";
-import type { PortfolioEntry, IdentifyResponse } from "@/types";
+import type { PortfolioEntry, IdentifyResponse, Identification, MarketRange } from "@/types";
 import { CollectionShareCard } from "@/components/share/CollectionShareCard";
 import { WatchShareCard } from "@/components/share/WatchShareCard";
 import { captureAndShare } from "@/services/share";
@@ -71,8 +71,13 @@ export default function HomeScreen() {
     }
   };
 
-  const [shareTarget, setShareTarget] = React.useState<PortfolioEntry | null>(null);
+  const [shareTarget, setShareTarget] = React.useState<{
+    entry: PortfolioEntry;
+    identification: Identification;
+    market: MarketRange;
+  } | null>(null);
   const cardShareRef = React.useRef<View>(null);
+  const shareTargetIdRef = React.useRef<string | null>(null);
 
   const handleDeleteEntry = (entry: PortfolioEntry) => {
     Alert.alert(
@@ -108,7 +113,27 @@ export default function HomeScreen() {
       { text: "Cancel", style: "cancel" },
       {
         text: "Share",
-        onPress: () => setShareTarget(entry),
+        onPress: () => {
+          try {
+            const identification: Identification = {
+              brand: entry.brand,
+              model_family: entry.model_family,
+              reference_number: entry.reference_number,
+              search_string: `${entry.brand} ${entry.model_family}`,
+              confidence_score: entry.confidence_score,
+              possible_matches: [],
+              authenticity_caution: JSON.parse(entry.authenticity_caution),
+              verification_required: false,
+              additional_image_hint: null,
+            };
+            const market: MarketRange = JSON.parse(entry.market_data_json);
+            shareTargetIdRef.current = entry.id;
+            setShareTarget({ entry, identification, market });
+          } catch (err) {
+            console.error("[HomeScreen] Failed to parse entry for sharing:", err);
+            Alert.alert("Error", "Failed to prepare this watch for sharing.");
+          }
+        },
       },
       {
         text: "Delete",
@@ -120,10 +145,18 @@ export default function HomeScreen() {
 
   React.useEffect(() => {
     if (!shareTarget) return;
+    const targetId = shareTarget.entry.id;
     const run = async () => {
       await new Promise((resolve) => setTimeout(resolve, 50)); // let the off-screen card render with the new target
-      await captureAndShare(cardShareRef, `${shareTarget.brand}-${shareTarget.model_family}`);
-      setShareTarget(null);
+      if (shareTargetIdRef.current !== targetId) return; // a newer long-press superseded this one
+      await captureAndShare(
+        cardShareRef,
+        `${shareTarget.entry.brand}-${shareTarget.entry.model_family}`
+      );
+      if (shareTargetIdRef.current === targetId) {
+        shareTargetIdRef.current = null;
+        setShareTarget(null);
+      }
     };
     void run();
   }, [shareTarget]);
@@ -277,19 +310,9 @@ export default function HomeScreen() {
         <View style={styles.offscreen} pointerEvents="none">
           <WatchShareCard
             ref={cardShareRef}
-            identification={{
-              brand: shareTarget.brand,
-              model_family: shareTarget.model_family,
-              reference_number: shareTarget.reference_number,
-              search_string: `${shareTarget.brand} ${shareTarget.model_family}`,
-              confidence_score: shareTarget.confidence_score,
-              possible_matches: [],
-              authenticity_caution: JSON.parse(shareTarget.authenticity_caution),
-              verification_required: false,
-              additional_image_hint: null,
-            }}
-            market={JSON.parse(shareTarget.market_data_json)}
-            imageUri={shareTarget.image_uri}
+            identification={shareTarget.identification}
+            market={shareTarget.market}
+            imageUri={shareTarget.entry.image_uri}
           />
         </View>
       )}
