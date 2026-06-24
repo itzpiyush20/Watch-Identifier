@@ -64,7 +64,7 @@ export const IdentificationSchema = z.object({
   model_family: z.string(),
   reference_number: z.string().nullable(),
   search_string: z.string(),
-  search_queries: z.array(z.string()).min(1),
+  search_queries: z.array(z.string()), // empty when brand is unidentified — skips the market lookup
   confidence_score: z.number().min(0).max(1),
   possible_matches: z.array(PossibleMatchSchema),
   authenticity_caution: AuthenticityCautionSchema,
@@ -187,4 +187,7 @@ export interface PortfolioEntry {
   ownership_status?: string | null; // one of: Currently Owned, Previously Owned, Wishlist
   box_available?: 0 | 1 | null;
   papers_available?: 0 | 1 | null;
+  // "Best For" specialty tag — user-entered, not AI-inferred. One of:
+  // Formal, Party, Sport / Active, Everyday / Casual, Dress, Travel.
+  best_for?: string | null;
 }
