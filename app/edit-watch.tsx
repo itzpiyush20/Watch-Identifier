@@ -44,6 +44,21 @@ export default function EditWatchScreen() {
   const [dateError, setDateError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
 
+  React.useEffect(() => {
+    if (!entry) return;
+    setBrand(entry.brand);
+    setModelFamily(entry.model_family);
+    setReferenceNumber(entry.reference_number ?? "");
+    setCollectionName(entry.collection_name ?? "");
+    setPurchaseDate(entry.purchase_date ?? "");
+    setPurchasePrice(entry.purchase_price != null ? String(entry.purchase_price) : "");
+    setCondition(entry.condition ?? null);
+    setOwnershipStatus(entry.ownership_status ?? null);
+    setBoxAvailable(entry.box_available === 1);
+    setPapersAvailable(entry.papers_available === 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry?.id]);
+
   if (!entry) {
     return (
       <SafeAreaView style={styles.container}>
