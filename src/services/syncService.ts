@@ -35,6 +35,14 @@ export async function syncPortfolio(
       confidence_score: entry.confidence_score,
       authenticity_caution: JSON.parse(entry.authenticity_caution),
       scanned_at: new Date(entry.scanned_at).toISOString(),
+      collection_name: entry.collection_name ?? null,
+      purchase_date: entry.purchase_date ?? null,
+      purchase_price: entry.purchase_price ?? null,
+      purchase_currency: entry.purchase_currency ?? null,
+      condition: entry.condition ?? null,
+      ownership_status: entry.ownership_status ?? null,
+      box_available: entry.box_available ?? null,
+      papers_available: entry.papers_available ?? null,
     }));
 
     const { error } = await supabase
