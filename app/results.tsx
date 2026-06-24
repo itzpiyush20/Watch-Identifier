@@ -313,6 +313,14 @@ export default function ResultsScreen() {
         <Pressable style={styles.shareBtn} onPress={handleShare}>
           <Text style={styles.shareBtnText}>Share</Text>
         </Pressable>
+        {savedEntryId != null && (
+          <Pressable
+            style={styles.editBtn}
+            onPress={() => router.push("/edit-watch")}
+          >
+            <Text style={styles.editBtnText}>Edit Details</Text>
+          </Pressable>
+        )}
         <Pressable
           style={[styles.collectionBtn, savedEntryId != null && styles.collectionBtnSaved]}
           onPress={handleToggleCollection}
@@ -595,6 +603,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   shareBtnText: { ...typography.label, color: colors.textPrimary },
+  editBtn: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  editBtnText: { ...typography.label, color: colors.gold },
   offscreen: {
     position: "absolute",
     top: -9999,
