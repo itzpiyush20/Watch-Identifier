@@ -180,6 +180,40 @@ Rules:
 - Set additional_image_hint only when confidence_score < 0.85; otherwise null.
 - Output ONLY the JSON object, no markdown, no prose.`;
 
+/**
+ * Builds ordered eBay search queries from already-validated fields, most
+ * specific first — never from model-generated free text, to keep the same
+ * hallucination discipline applied to reference_number.
+ */
+function buildSearchQueries(r: {
+  brand: string;
+  model_family: string;
+  reference_number: string | null;
+  visual_fingerprint: z.infer<typeof GeminiRawSchema>["visual_fingerprint"];
+}): string[] {
+  const queries: string[] = [];
+  const base = [r.brand, r.model_family].filter((x) => x && x !== "Unknown");
+
+  if (r.reference_number && base.length > 0) {
+    queries.push([...base, r.reference_number].join(" "));
+  }
+  if (base.length > 0) {
+    queries.push(base.join(" "));
+  }
+  const vf = r.visual_fingerprint;
+  if (vf && (vf.case.shape || vf.dial.primary_color)) {
+    const broad = [
+      r.brand !== "Unknown" ? r.brand : null,
+      vf.case.shape,
+      vf.dial.primary_color,
+    ].filter((x): x is string => Boolean(x));
+    if (broad.length > 0) {
+      queries.push(broad.join(" "));
+    }
+  }
+  return queries.length > 0 ? queries : [r.brand];
+}
+
 export async function identifyWithGemini(
   imageBase64: string,
   imageBase64Back?: string
@@ -265,11 +299,14 @@ export async function identifyWithGemini(
     model_family: r.model_family,
     reference_number: r.reference_number,
     search_string: searchString || r.brand,
+    search_queries: buildSearchQueries(r),
     confidence_score: r.confidence_score,
     possible_matches: r.possible_matches,
     authenticity_caution: { level: r.authenticity.level, note: r.authenticity.note },
     verification_required: verificationRequired,
     additional_image_hint: r.additional_image_hint,
+    visual_fingerprint: r.visual_fingerprint,
+    visual_fingerprint_confidence: r.visual_fingerprint_confidence,
   };
 
   // Final guarantee the contract holds before it leaves the server.
