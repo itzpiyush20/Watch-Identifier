@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, typography, radius } from "@/theme";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortfolio } from "@/hooks/usePortfolio";
@@ -31,7 +32,7 @@ const CARD_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { entries: allEntries, loading, remove: removeEntry } = usePortfolio(user?.id);
+  const { entries: allEntries, loading, remove: removeEntry, refresh } = usePortfolio(user?.id);
   const { entitlement } = useEntitlement();
   const { setResult } = useScanStore();
 
@@ -177,6 +178,12 @@ export default function HomeScreen() {
   const handleShareCollection = async () => {
     await captureAndShare(collectionShareRef, "my-watch-collection");
   };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      void refresh();
+    }, [refresh])
+  );
 
   const renderItem = ({ item }: { item: PortfolioEntry }) => {
     let medianPrice = "—";
