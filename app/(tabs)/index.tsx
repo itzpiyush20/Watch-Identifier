@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Animated, {
   FadeInDown,
@@ -300,10 +301,18 @@ export default function HomeScreen() {
 
       {/* Collection Stats Card */}
       {entries.length > 0 && (
-        <View style={styles.statsCard}>
+        <LinearGradient
+          colors={["rgba(201,162,75,0.12)", "rgba(20,20,22,0)"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.statsCard}
+        >
           <View style={styles.statsRow}>
             <View>
-              <Text style={styles.statsLabel}>COLLECTION VALUE</Text>
+              <View style={styles.statsLabelRow}>
+                <Ionicons name="diamond-outline" size={12} color={colors.goldMuted} />
+                <Text style={styles.statsLabel}>COLLECTION VALUE</Text>
+              </View>
               <Text style={styles.statsValue}>
                 {formatCurrency(getCollectionValue(), getDeviceCurrency())}
               </Text>
@@ -317,7 +326,7 @@ export default function HomeScreen() {
           <Pressable style={styles.shareCollectionBtn} onPress={handleShareCollection}>
             <Text style={styles.shareCollectionBtnText}>Share Collection</Text>
           </Pressable>
-        </View>
+        </LinearGradient>
       )}
 
       {hiddenCount > 0 && (
@@ -330,7 +339,7 @@ export default function HomeScreen() {
       {/* Watch Grid or Empty State */}
       {entries.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>🕒</Text>
+          <Ionicons name="watch-outline" size={64} color={colors.goldMuted} />
           <Text style={styles.emptyTitle}>Vault is Empty</Text>
           <Text style={styles.emptySubtitle}>
             Scan a wristwatch to automatically identify it, estimate its market value,
@@ -428,8 +437,9 @@ const styles = StyleSheet.create({
   statsItem: {
     alignItems: "flex-end",
   },
+  statsLabelRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   statsLabel: { ...typography.label, color: colors.textTertiary, fontSize: 10 },
-  statsValue: { ...typography.heading, color: colors.gold, fontSize: 20 },
+  statsValue: { fontFamily: "BodoniModa_700Bold", color: colors.gold, fontSize: 20 },
   shareCollectionBtn: {
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
@@ -500,10 +510,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: spacing.xl,
     gap: spacing.md,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    color: colors.goldMuted,
   },
   emptyTitle: { ...typography.title, color: colors.textPrimary },
   emptySubtitle: {
