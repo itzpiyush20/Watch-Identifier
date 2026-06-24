@@ -19,6 +19,8 @@ import { useScanStore } from "@/store/scanStore";
 import { formatCurrency } from "@/utils/format";
 import { getDeviceCurrency } from "@/utils/format";
 import type { PortfolioEntry, IdentifyResponse } from "@/types";
+import { CollectionShareCard } from "@/components/share/CollectionShareCard";
+import { captureAndShare } from "@/services/share";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;
@@ -75,6 +77,12 @@ export default function HomeScreen() {
         return sum;
       }
     }, 0);
+  };
+
+  const collectionShareRef = React.useRef<View>(null);
+
+  const handleShareCollection = async () => {
+    await captureAndShare(collectionShareRef, "my-watch-collection");
   };
 
   const renderItem = ({ item }: { item: PortfolioEntry }) => {
@@ -147,6 +155,9 @@ export default function HomeScreen() {
               <Text style={styles.statsValue}>{entries.length}</Text>
             </View>
           </View>
+          <Pressable style={styles.shareCollectionBtn} onPress={handleShareCollection}>
+            <Text style={styles.shareCollectionBtnText}>Share Collection</Text>
+          </Pressable>
         </View>
       )}
 
@@ -188,6 +199,15 @@ export default function HomeScreen() {
           <Text style={styles.fabText}>+ Scan</Text>
         </Pressable>
       )}
+
+      <View style={styles.offscreen} pointerEvents="none">
+        <CollectionShareCard
+          ref={collectionShareRef}
+          entries={entries}
+          totalValue={getCollectionValue()}
+          currency={getDeviceCurrency()}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -240,6 +260,19 @@ const styles = StyleSheet.create({
   },
   statsLabel: { ...typography.label, color: colors.textTertiary, fontSize: 10 },
   statsValue: { ...typography.heading, color: colors.gold, fontSize: 20 },
+  shareCollectionBtn: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    alignItems: "center",
+  },
+  shareCollectionBtnText: { ...typography.label, color: colors.gold, fontSize: 13 },
+  offscreen: {
+    position: "absolute",
+    top: -9999,
+    left: -9999,
+  },
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: 90,
