@@ -19,6 +19,7 @@ import { getDeviceCurrency } from "@/utils/format";
 
 const CONDITIONS = ["New", "Unworn", "Excellent", "Very Good", "Good", "Fair", "Poor"];
 const OWNERSHIP_STATUSES = ["Currently Owned", "Previously Owned", "Wishlist"];
+const BEST_FOR_OPTIONS = ["Formal", "Party", "Sport / Active", "Everyday / Casual", "Dress", "Travel"];
 
 export default function EditWatchScreen() {
   const router = useRouter();
@@ -41,6 +42,7 @@ export default function EditWatchScreen() {
   );
   const [boxAvailable, setBoxAvailable] = React.useState(entry?.box_available === 1);
   const [papersAvailable, setPapersAvailable] = React.useState(entry?.papers_available === 1);
+  const [bestFor, setBestFor] = React.useState<string | null>(entry?.best_for ?? null);
   const [dateError, setDateError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
 
@@ -56,6 +58,7 @@ export default function EditWatchScreen() {
     setOwnershipStatus(entry.ownership_status ?? null);
     setBoxAvailable(entry.box_available === 1);
     setPapersAvailable(entry.papers_available === 1);
+    setBestFor(entry.best_for ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry?.id]);
 
@@ -95,6 +98,7 @@ export default function EditWatchScreen() {
         ownership_status: ownershipStatus,
         box_available: boxAvailable ? 1 : 0,
         papers_available: papersAvailable ? 1 : 0,
+        best_for: bestFor,
       });
       router.back();
     } catch (err) {
@@ -213,6 +217,16 @@ export default function EditWatchScreen() {
               trackColor={{ false: colors.surfaceElevated, true: colors.gold }}
             />
           </View>
+        </View>
+
+        <Text style={styles.sectionTitle}>BEST FOR</Text>
+        <View style={styles.card}>
+          {BEST_FOR_OPTIONS.map((option) => (
+            <Pressable key={option} style={styles.optionRow} onPress={() => setBestFor(option)}>
+              <Text style={styles.optionLabel}>{option}</Text>
+              {bestFor === option && <Text style={styles.checkmark}>✓</Text>}
+            </Pressable>
+          ))}
         </View>
 
         <Pressable style={styles.saveBtn} onPress={handleSave} disabled={saving}>
