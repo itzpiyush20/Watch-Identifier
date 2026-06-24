@@ -34,6 +34,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-secure-store",
     "expo-asset",
     "expo-sqlite",
+    "expo-font",
     [
       "expo-camera",
       {
