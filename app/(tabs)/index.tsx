@@ -13,6 +13,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from "react-native-reanimated";
 import { colors, spacing, typography, radius } from "@/theme";
 import { useAuth } from "@/hooks/useAuth";
 import { usePortfolio } from "@/hooks/usePortfolio";
@@ -28,6 +37,78 @@ import { supabase } from "@/services/supabase";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;
+
+interface WatchCardProps {
+  item: PortfolioEntry;
+  index: number;
+  onPress: () => void;
+  onLongPress: () => void;
+}
+
+function WatchCard({ item, index, onPress, onLongPress }: WatchCardProps) {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.97, { damping: 15, stiffness: 300 });
+  };
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+  };
+
+  let medianPrice = "—";
+  try {
+    const market = JSON.parse(item.market_data_json);
+    if (market.median_estimate) {
+      medianPrice = formatCurrency(market.median_estimate, market.currency);
+    }
+  } catch {}
+
+  return (
+    <Animated.View entering={FadeInDown.delay(index * 40).duration(300)}>
+      <Animated.View style={animatedStyle}>
+        <Pressable
+          style={styles.card}
+          onPress={() => {
+            void Haptics.selectionAsync();
+            onPress();
+          }}
+          onLongPress={onLongPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+        >
+          <View style={styles.imageContainer}>
+            {item.image_uri ? (
+              <Image source={{ uri: item.image_uri }} style={styles.cardImage} />
+            ) : (
+              <View style={styles.placeholderImage}>
+                <Ionicons name="watch-outline" size={40} color={colors.goldMuted} />
+              </View>
+            )}
+            <View style={styles.syncBadge}>
+              <Ionicons
+                name={item.synced === 1 ? "cloud-done-outline" : "sync-outline"}
+                size={14}
+                color={colors.textPrimary}
+              />
+            </View>
+          </View>
+          <View style={styles.cardInfo}>
+            <Text style={styles.cardBrand} numberOfLines={1}>
+              {item.brand}
+            </Text>
+            <Text style={styles.cardModel} numberOfLines={1}>
+              {item.model_family}
+            </Text>
+            <Text style={styles.cardPrice}>{medianPrice}</Text>
+          </View>
+        </Pressable>
+      </Animated.View>
+    </Animated.View>
+  );
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -191,45 +272,14 @@ export default function HomeScreen() {
     }, [refresh])
   );
 
-  const renderItem = ({ item }: { item: PortfolioEntry }) => {
-    let medianPrice = "—";
-    try {
-      const market = JSON.parse(item.market_data_json);
-      if (market.median_estimate) {
-        medianPrice = formatCurrency(market.median_estimate, market.currency);
-      }
-    } catch {}
-
-    return (
-      <Pressable
-        style={styles.card}
-        onPress={() => handleCardPress(item)}
-        onLongPress={() => handleCardLongPress(item)}
-      >
-        <View style={styles.imageContainer}>
-          {item.image_uri ? (
-            <Image source={{ uri: item.image_uri }} style={styles.cardImage} />
-          ) : (
-            <View style={styles.placeholderImage}>
-              <Text style={styles.placeholderText}>🕒</Text>
-            </View>
-          )}
-          <View style={styles.syncBadge}>
-            <Text style={styles.syncText}>{item.synced === 1 ? "☁️" : "🔄"}</Text>
-          </View>
-        </View>
-        <View style={styles.cardInfo}>
-          <Text style={styles.cardBrand} numberOfLines={1}>
-            {item.brand}
-          </Text>
-          <Text style={styles.cardModel} numberOfLines={1}>
-            {item.model_family}
-          </Text>
-          <Text style={styles.cardPrice}>{medianPrice}</Text>
-        </View>
-      </Pressable>
-    );
-  };
+  const renderItem = ({ item, index }: { item: PortfolioEntry; index: number }) => (
+    <WatchCard
+      item={item}
+      index={index}
+      onPress={() => handleCardPress(item)}
+      onLongPress={() => handleCardLongPress(item)}
+    />
+  );
 
   if (loading) {
     return (
@@ -251,10 +301,18 @@ export default function HomeScreen() {
 
       {/* Collection Stats Card */}
       {entries.length > 0 && (
-        <View style={styles.statsCard}>
+        <LinearGradient
+          colors={["rgba(201,162,75,0.12)", "rgba(20,20,22,0)"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.statsCard}
+        >
           <View style={styles.statsRow}>
             <View>
-              <Text style={styles.statsLabel}>COLLECTION VALUE</Text>
+              <View style={styles.statsLabelRow}>
+                <Ionicons name="diamond-outline" size={12} color={colors.goldMuted} />
+                <Text style={styles.statsLabel}>COLLECTION VALUE</Text>
+              </View>
               <Text style={styles.statsValue}>
                 {formatCurrency(getCollectionValue(), getDeviceCurrency())}
               </Text>
@@ -268,7 +326,7 @@ export default function HomeScreen() {
           <Pressable style={styles.shareCollectionBtn} onPress={handleShareCollection}>
             <Text style={styles.shareCollectionBtnText}>Share Collection</Text>
           </Pressable>
-        </View>
+        </LinearGradient>
       )}
 
       {hiddenCount > 0 && (
@@ -281,7 +339,7 @@ export default function HomeScreen() {
       {/* Watch Grid or Empty State */}
       {entries.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>🕒</Text>
+          <Ionicons name="watch-outline" size={64} color={colors.goldMuted} />
           <Text style={styles.emptyTitle}>Vault is Empty</Text>
           <Text style={styles.emptySubtitle}>
             Scan a wristwatch to automatically identify it, estimate its market value,
@@ -379,8 +437,9 @@ const styles = StyleSheet.create({
   statsItem: {
     alignItems: "flex-end",
   },
+  statsLabelRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   statsLabel: { ...typography.label, color: colors.textTertiary, fontSize: 10 },
-  statsValue: { ...typography.heading, color: colors.gold, fontSize: 20 },
+  statsValue: { fontFamily: "BodoniModa_700Bold", color: colors.gold, fontSize: 20 },
   shareCollectionBtn: {
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
@@ -411,7 +470,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   imageContainer: {
-    height: 140,
+    height: 190,
     backgroundColor: colors.surfaceElevated,
     position: "relative",
   },
@@ -426,9 +485,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  placeholderText: {
-    fontSize: 32,
-  },
   syncBadge: {
     position: "absolute",
     top: spacing.xs,
@@ -440,9 +496,6 @@ const styles = StyleSheet.create({
     height: 24,
     justifyContent: "center",
     alignItems: "center",
-  },
-  syncText: {
-    fontSize: 12,
   },
   cardInfo: {
     padding: spacing.sm,
@@ -457,10 +510,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: spacing.xl,
     gap: spacing.md,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    color: colors.goldMuted,
   },
   emptyTitle: { ...typography.title, color: colors.textPrimary },
   emptySubtitle: {

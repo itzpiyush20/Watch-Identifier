@@ -4,6 +4,9 @@ import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useFonts } from "expo-font";
+import { BodoniModa_700Bold } from "@expo-google-fonts/bodoni-moda";
+import { Jost_400Regular, Jost_600SemiBold } from "@expo-google-fonts/jost";
 import { DatabaseProvider } from "@/hooks/useDatabase";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { RemoteConfigProvider } from "@/hooks/useRemoteConfig";
@@ -81,6 +84,16 @@ function InitialLayout() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    BodoniModa_700Bold,
+    Jost_400Regular,
+    Jost_600SemiBold,
+  });
+
+  if (!fontsLoaded) {
+    return <LoadingScreen />;
+  }
+
   return (
     <ErrorBoundary>
       <GestureHandlerRootView
