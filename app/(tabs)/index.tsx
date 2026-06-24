@@ -391,6 +391,7 @@ export default function HomeScreen() {
             identification={shareTarget.identification}
             market={shareTarget.market}
             imageUri={shareTarget.entry.image_uri}
+            bestFor={shareTarget.entry.best_for}
           />
         </View>
       )}
