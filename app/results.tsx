@@ -27,7 +27,7 @@ export default function ResultsScreen() {
   const { result, imageUri, savedEntryId, setSavedEntryId, clear } = useScanStore();
   const config = useRemoteConfig();
   const { session, user } = useAuth();
-  const { save: saveToPortfolio, remove: removeFromPortfolio } = usePortfolio(user?.id);
+  const { entries, save: saveToPortfolio, remove: removeFromPortfolio } = usePortfolio(user?.id);
   const [rating, setRating] = React.useState<"up" | "down" | null>(null);
   const [savingState, setSavingState] = React.useState<"idle" | "saving">("idle");
   const shareCardRef = React.useRef<View>(null);
@@ -41,6 +41,8 @@ export default function ResultsScreen() {
   }
 
   const { identification, market, request_id } = result;
+  const savedEntry = savedEntryId != null ? entries.find((e) => e.id === savedEntryId) : null;
+  const bestFor = savedEntry?.best_for ?? null;
 
   const handleShare = async () => {
     await captureAndShare(shareCardRef, `${identification.brand}-${identification.model_family}`);
@@ -171,6 +173,12 @@ export default function ResultsScreen() {
           {identification.reference_number && (
             <View style={styles.refBadge}>
               <Text style={styles.refText}>Ref. {identification.reference_number}</Text>
+            </View>
+          )}
+
+          {bestFor && (
+            <View style={styles.bestForPill}>
+              <Text style={styles.bestForPillText}>{bestFor}</Text>
             </View>
           )}
 
@@ -442,6 +450,7 @@ export default function ResultsScreen() {
           identification={identification}
           market={market}
           imageUri={imageUri}
+          bestFor={bestFor}
         />
       </View>
     </SafeAreaView>
@@ -499,6 +508,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   refText: { ...typography.caption, color: colors.textSecondary, fontSize: 11 },
+  bestForPill: {
+    alignSelf: "flex-start",
+    borderColor: colors.goldMuted,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    marginTop: spacing.xs,
+  },
+  bestForPillText: { ...typography.caption, color: colors.goldMuted, fontSize: 11 },
   confidenceRow: {
     flexDirection: "row",
     alignItems: "center",
