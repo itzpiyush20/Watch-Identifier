@@ -103,6 +103,13 @@ function WatchCard({ item, index, onPress, onLongPress }: WatchCardProps) {
               {item.model_family}
             </Text>
             <Text style={styles.cardPrice}>{medianPrice}</Text>
+            {item.best_for && (
+              <View style={styles.bestForPill}>
+                <Text style={styles.bestForPillText} numberOfLines={1}>
+                  {item.best_for}
+                </Text>
+              </View>
+            )}
           </View>
         </Pressable>
       </Animated.View>
@@ -504,6 +511,16 @@ const styles = StyleSheet.create({
   cardBrand: { ...typography.label, color: colors.gold, fontSize: 12 },
   cardModel: { ...typography.body, color: colors.textPrimary, fontSize: 14 },
   cardPrice: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  bestForPill: {
+    alignSelf: "flex-start",
+    borderColor: colors.goldMuted,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    marginTop: spacing.xs,
+  },
+  bestForPillText: { ...typography.caption, color: colors.goldMuted, fontSize: 10 },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
