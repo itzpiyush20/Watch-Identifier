@@ -69,6 +69,7 @@ function InitialLayout() {
         name="results"
         options={{ title: "Result", headerBackTitle: "Scan" }}
       />
+      <Stack.Screen name="edit-watch" options={{ title: "Edit Details" }} />
       <Stack.Screen name="settings" options={{ title: "Settings" }} />
       <Stack.Screen name="subscription" options={{ title: "Upgrade" }} />
       <Stack.Screen name="legal/privacy-policy" options={{ title: "Privacy Policy" }} />
