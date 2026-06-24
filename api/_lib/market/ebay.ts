@@ -2,6 +2,7 @@ import { env } from "../env.js";
 import { MarketSource, type MarketRange } from "../../../src/types/index.js";
 import { DISCLAIMERS } from "./disclaimers.js";
 import type { MarketDataProvider, MarketQuery } from "./provider.js";
+import type { RegionConfig } from "../regions.js";
 
 const TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token";
 const BROWSE_URL = "https://api.ebay.com/buy/browse/v1/item_summary/search";
@@ -44,8 +45,8 @@ function percentile(sorted: number[], p: number): number {
 export class EbayMarketProvider implements MarketDataProvider {
   readonly name = "ebay";
 
-  async getRange({ searchString, region }: MarketQuery): Promise<MarketRange> {
-    const empty: MarketRange = {
+  private emptyRange(region: RegionConfig): MarketRange {
+    return {
       low_estimate: null,
       median_estimate: null,
       high_estimate: null,
@@ -55,16 +56,13 @@ export class EbayMarketProvider implements MarketDataProvider {
       is_asking_price: true,
       disclaimer: DISCLAIMERS.combined,
     };
+  }
 
-    if (!searchString.trim()) return empty;
-
-    let token: string;
-    try {
-      token = await getAppToken();
-    } catch {
-      return empty; // pricing is best-effort; identification still returns
-    }
-
+  private async searchOnce(
+    searchString: string,
+    region: RegionConfig,
+    token: string
+  ): Promise<MarketRange | null> {
     const params = new URLSearchParams({
       q: searchString,
       limit: String(SAMPLE_LIMIT),
@@ -81,9 +79,9 @@ export class EbayMarketProvider implements MarketDataProvider {
         },
       });
     } catch {
-      return empty;
+      return null;
     }
-    if (!resp.ok) return empty;
+    if (!resp.ok) return null;
 
     const json = (await resp.json()) as {
       itemSummaries?: { price?: { value?: string; currency?: string } }[];
@@ -94,7 +92,7 @@ export class EbayMarketProvider implements MarketDataProvider {
       .filter((n) => Number.isFinite(n) && n > 0)
       .sort((a, b) => a - b);
 
-    if (prices.length === 0) return empty;
+    if (prices.length === 0) return null;
 
     // Trim outliers (parts/lots/typos) before computing the band.
     const trimmed = prices.slice(
@@ -116,5 +114,23 @@ export class EbayMarketProvider implements MarketDataProvider {
       is_asking_price: true,
       disclaimer: DISCLAIMERS.combined,
     };
+  }
+
+  async getRange({ searchStrings, region }: MarketQuery): Promise<MarketRange> {
+    const queries = searchStrings.filter((s) => s.trim().length > 0);
+    if (queries.length === 0) return this.emptyRange(region);
+
+    let token: string;
+    try {
+      token = await getAppToken();
+    } catch {
+      return this.emptyRange(region); // pricing is best-effort; identification still returns
+    }
+
+    for (const query of queries) {
+      const result = await this.searchOnce(query, region, token);
+      if (result) return result;
+    }
+    return this.emptyRange(region);
   }
 }
