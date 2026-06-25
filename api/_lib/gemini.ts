@@ -193,25 +193,37 @@ function buildSearchQueries(r: {
 }): string[] {
   const queries: string[] = [];
   const base = [r.brand, r.model_family].filter((x) => x && x !== "Unknown");
+  const modelFamilyKnown = r.model_family !== "Unknown" && base.length > 0;
 
   if (r.reference_number && base.length > 0) {
     queries.push([...base, r.reference_number].join(" "));
   }
-  if (base.length > 0) {
+  // brand+model_family is a real differentiator only when model_family was
+  // actually read off the watch — emit it ahead of the visual-trait query below.
+  if (modelFamilyKnown) {
     queries.push(base.join(" "));
   }
+  // Only narrow with visual traits when we have a brand to anchor the search —
+  // shape/color alone (e.g. "Round Black") matches generic eBay fashion-watch
+  // listings and produces a misleading price for ANY round dark-dial watch,
+  // regardless of its real value. When model_family is unknown, this query
+  // still varies per photo (unlike the bare-brand fallback below), so it goes
+  // ahead of that fallback rather than after it.
   const vf = r.visual_fingerprint;
-  if (vf && (vf.case.shape || vf.dial.primary_color)) {
-    const broad = [
-      r.brand !== "Unknown" ? r.brand : null,
-      vf.case.shape,
-      vf.dial.primary_color,
-    ].filter((x): x is string => Boolean(x));
-    if (broad.length > 0) {
-      queries.push(broad.join(" "));
-    }
+  if (r.brand !== "Unknown" && vf && (vf.case.shape || vf.dial.primary_color)) {
+    const broad = [r.brand, vf.case.shape, vf.dial.primary_color].filter(
+      (x): x is string => Boolean(x)
+    );
+    queries.push(broad.join(" "));
   }
-  return queries.length > 0 ? queries : [r.brand];
+  // Bare brand is the least specific signal — every watch of that brand
+  // converges on the same price band, so it's a last resort, not a default.
+  if (r.brand !== "Unknown" && !modelFamilyKnown) {
+    queries.push(r.brand);
+  }
+  // No identifiable brand/model at all: skip the market lookup entirely
+  // rather than searching eBay for the literal string "Unknown".
+  return queries;
 }
 
 export async function identifyWithGemini(
