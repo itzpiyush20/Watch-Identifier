@@ -47,6 +47,10 @@ const GeminiRawSchema = z.object({
     })
     .nullable(),
   visual_fingerprint_confidence: z.number().min(0).max(1),
+  quality_check: z.object({
+    is_clear: z.boolean(),
+    reason: z.string().nullable(),
+  }),
 });
 
 const PROMPT_SINGLE = `You are an expert horologist. Identify the wristwatch in the image (the dial/front).
@@ -88,8 +92,12 @@ Return STRICT JSON only, matching this schema exactly:
                                           // sub-dial count — those are precise spatial claims you are
                                           // prone to inventing.
   },
-  "visual_fingerprint_confidence": number // 0..1 confidence in the visual_fingerprint block specifically,
-                                          // independent of confidence_score (which is about brand/model)
+  "visual_fingerprint_confidence": number, // 0..1 confidence in the visual_fingerprint block specifically,
+                                           // independent of confidence_score (which is about brand/model)
+  "quality_check": {
+    "is_clear": boolean,                 // false if the image is too blurry, out of focus, has extreme glare, is too dark, or is too hazy/noisy to identify the watch
+    "reason": string | null              // if is_clear is false, provide a short, polite request to the user explaining why they should retake the image (e.g., "The image is too blurry. Please retake the photo with the watch in focus and keep the hand steady.")
+  }
 }
 Rules:
 - Weigh evidence in this order, highest first: (1) text/logo/wordmark printed or engraved on the dial,
@@ -110,6 +118,7 @@ Rules:
   object fully covers it) — not merely because one section among case/dial/strap is missing.
 - Lower confidence_score when the image is blurry, partial, or ambiguous.
 - Set additional_image_hint only when confidence_score < 0.85; otherwise null.
+- Set quality_check.is_clear to false if the image quality is too low (e.g., extremely blurry, out of focus, major glare covering dial details, too dark). In this case, specify a helpful retake message in quality_check.reason.
 - Output ONLY the JSON object, no markdown, no prose.`;
 
 const PROMPT_WITH_BACK = `You are an expert horologist. Identify the wristwatch from these two images:
@@ -152,8 +161,12 @@ Return STRICT JSON only, matching this schema exactly:
                                           // sub-dial count — those are precise spatial claims you are
                                           // prone to inventing.
   },
-  "visual_fingerprint_confidence": number // 0..1 confidence in visual_fingerprint, independent of
-                                          // confidence_score
+  "visual_fingerprint_confidence": number, // 0..1 confidence in visual_fingerprint, independent of
+                                           // confidence_score
+  "quality_check": {
+    "is_clear": boolean,                 // false if either the front or the back image is too blurry, out of focus, has extreme glare, is too dark, or is too hazy/noisy to identify details
+    "reason": string | null              // if is_clear is false, provide a short, polite request explaining why they should retake (e.g., "The front image is too blurry. Please retake the photo with the watch in focus.")
+  }
 }
 Rules:
 - Weigh evidence in this order, highest first: (1) text/logo/wordmark printed or engraved on the dial,
@@ -178,6 +191,7 @@ Rules:
   object fully covers it) — not merely because one section among case/dial/strap is missing.
 - Lower confidence_score when either image is blurry, partial, or ambiguous.
 - Set additional_image_hint only when confidence_score < 0.85; otherwise null.
+- Set quality_check.is_clear to false if the image quality of either photo is too low (e.g., extremely blurry, out of focus, major glare covering dial/case details, too dark). In this case, specify a helpful retake message in quality_check.reason.
 - Output ONLY the JSON object, no markdown, no prose.`;
 
 /**
@@ -236,10 +250,10 @@ export async function identifyWithGemini(
   const toDataUrl = (b64: string) =>
     `data:image/jpeg;base64,${b64.replace(/^data:image\/\w+;base64,/, "")}`;
 
-  const content: Array<
+  const content: (
     | { type: "text"; text: string }
     | { type: "image_url"; image_url: { url: string } }
-  > = imageBase64Back
+  )[] = imageBase64Back
     ? [
         { type: "text", text: PROMPT_WITH_BACK },
         { type: "image_url", image_url: { url: toDataUrl(imageBase64) } },
@@ -297,6 +311,12 @@ export async function identifyWithGemini(
   }
 
   const r = raw.data;
+  if (!r.quality_check.is_clear) {
+    throw new ApiException(
+      ErrorCode.IMAGE_QUALITY_BAD,
+      r.quality_check.reason ?? "The image is too blurry or unclear. Please retake the photo."
+    );
+  }
   const searchString = [r.brand, r.model_family, r.reference_number]
     .filter((x) => x && x !== "Unknown")
     .join(" ")

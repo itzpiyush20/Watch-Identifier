@@ -8,7 +8,9 @@ import {
   Image,
   Linking,
   Alert,
+  Modal,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -30,6 +32,7 @@ export default function ResultsScreen() {
   const { entries, save: saveToPortfolio, remove: removeFromPortfolio } = usePortfolio(user?.id);
   const [rating, setRating] = React.useState<"up" | "down" | null>(null);
   const [savingState, setSavingState] = React.useState<"idle" | "saving">("idle");
+  const [selectedDoc, setSelectedDoc] = React.useState<{ uri: string; title: string } | null>(null);
   const shareCardRef = React.useRef<View>(null);
 
   if (!result) {
@@ -400,6 +403,78 @@ export default function ResultsScreen() {
             ))}
           </View>
         )}
+
+        {/* Documentation Vault Section */}
+        {savedEntryId != null && savedEntry && (
+          <View style={styles.vaultCard}>
+            <View style={styles.vaultHeader}>
+              <Ionicons name="folder-open" size={16} color={colors.gold} />
+              <Text style={styles.vaultKicker}>DOCUMENTATION VAULT</Text>
+            </View>
+
+            <View style={styles.vaultRow}>
+              {/* Receipt */}
+              <View style={styles.vaultItem}>
+                <Text style={styles.vaultLabel}>Purchase Receipt</Text>
+                {savedEntry.receipt_image_uri ? (
+                  <Pressable
+                    style={styles.vaultThumbnailWrapper}
+                    onPress={() => {
+                      void Haptics.selectionAsync();
+                      setSelectedDoc({ uri: savedEntry.receipt_image_uri!, title: "Purchase Receipt" });
+                    }}
+                  >
+                    <Image source={{ uri: savedEntry.receipt_image_uri }} style={styles.vaultThumbnail} />
+                    <View style={styles.zoomOverlay}>
+                      <Ionicons name="eye-outline" size={18} color="#fff" />
+                    </View>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={styles.vaultPlaceholder}
+                    onPress={() => {
+                      void Haptics.selectionAsync();
+                      router.push("/edit-watch");
+                    }}
+                  >
+                    <Ionicons name="add-circle" size={24} color={colors.textTertiary} />
+                    <Text style={styles.vaultPlaceholderText}>Add Receipt</Text>
+                  </Pressable>
+                )}
+              </View>
+
+              {/* Certificate */}
+              <View style={styles.vaultItem}>
+                <Text style={styles.vaultLabel}>Warranty / Cert</Text>
+                {savedEntry.certificate_image_uri ? (
+                  <Pressable
+                    style={styles.vaultThumbnailWrapper}
+                    onPress={() => {
+                      void Haptics.selectionAsync();
+                      setSelectedDoc({ uri: savedEntry.certificate_image_uri!, title: "Warranty Certificate" });
+                    }}
+                  >
+                    <Image source={{ uri: savedEntry.certificate_image_uri }} style={styles.vaultThumbnail} />
+                    <View style={styles.zoomOverlay}>
+                      <Ionicons name="eye-outline" size={18} color="#fff" />
+                    </View>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={styles.vaultPlaceholder}
+                    onPress={() => {
+                      void Haptics.selectionAsync();
+                      router.push("/edit-watch");
+                    }}
+                  >
+                    <Ionicons name="add-circle" size={24} color={colors.textTertiary} />
+                    <Text style={styles.vaultPlaceholderText}>Add Cert</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* Footer controls */}
@@ -443,6 +518,29 @@ export default function ResultsScreen() {
           <Text style={styles.scanBtnText}>Scan Another</Text>
         </Pressable>
       </View>
+
+      {/* Full-screen Document Viewer Modal */}
+      {selectedDoc && (
+        <Modal
+          visible={!!selectedDoc}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setSelectedDoc(null)}
+        >
+          <View style={styles.modalContainer}>
+            <Pressable style={styles.modalBackdrop} onPress={() => setSelectedDoc(null)} />
+            <SafeAreaView style={styles.modalContent} edges={["top", "bottom"]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{selectedDoc.title}</Text>
+                <Pressable onPress={() => setSelectedDoc(null)} style={styles.modalCloseBtn} hitSlop={12}>
+                  <Ionicons name="close" size={24} color="#fff" />
+                </Pressable>
+              </View>
+              <Image source={{ uri: selectedDoc.uri }} style={styles.modalImage} />
+            </SafeAreaView>
+          </View>
+        </Modal>
+      )}
 
       <View style={styles.offscreen} pointerEvents="none">
         <WatchShareCard
@@ -740,5 +838,120 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -9999,
     left: -9999,
+  },
+
+  // ------------ Documentation Vault styles ---------------------------------
+  vaultCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  vaultHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    paddingBottom: spacing.xs,
+  },
+  vaultKicker: {
+    ...typography.label,
+    color: colors.goldMuted,
+    fontSize: 11,
+    letterSpacing: 1,
+  },
+  vaultRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  vaultItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  vaultLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    fontSize: 12,
+  },
+  vaultThumbnailWrapper: {
+    width: "100%",
+    height: 120,
+    borderRadius: radius.sm,
+    overflow: "hidden",
+    position: "relative",
+  },
+  vaultThumbnail: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  zoomOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  vaultPlaceholder: {
+    width: "100%",
+    height: 120,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: "dashed",
+    backgroundColor: colors.surfaceElevated,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  vaultPlaceholderText: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    fontSize: 11,
+  },
+
+  // ------------ Zoom Viewer Modal styles ------------------------------------
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.95)",
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalContent: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "space-between",
+    padding: spacing.md,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    paddingHorizontal: spacing.md,
+  },
+  modalTitle: {
+    ...typography.heading,
+    color: "#fff",
+  },
+  modalCloseBtn: {
+    padding: 8,
+  },
+  modalImage: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
+    resizeMode: "contain",
+    marginVertical: spacing.md,
   },
 });

@@ -12,14 +12,15 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
-import { colors, spacing, typography } from "@/theme";
+import { colors, spacing, typography, radius } from "@/theme";
 import { ReticleOverlay } from "@/components/scanner/ReticleOverlay";
 import { CaptureButton } from "@/components/scanner/CaptureButton";
 import { FlashToggle } from "@/components/scanner/FlashToggle";
 import { processImageForUpload } from "@/utils/imageUtils";
 import { hashImageBase64 } from "@/utils/imageHash";
-import { identifyWatch } from "@/services/api";
+import { identifyWatch, ApiClientError } from "@/services/api";
 import { track } from "@/services/analytics";
 import { useScanCache } from "@/hooks/useScanCache";
 import { useScanStore } from "@/store/scanStore";
@@ -31,7 +32,7 @@ const { height: SCREEN_H } = Dimensions.get("window");
 type ScanStatus =
   | { kind: "idle" }
   | { kind: "processing"; label: string }
-  | { kind: "error"; message: string; retryable: boolean };
+  | { kind: "error"; message: string; retryable: boolean; code?: string };
 
 interface RawCapture {
   uri: string;
@@ -48,6 +49,7 @@ export function ScanScreen() {
   // Two-step capture: front (dial) first, then case back for authenticity checks.
   const [stage, setStage] = useState<"front" | "back">("front");
   const [frontCapture, setFrontCapture] = useState<RawCapture | null>(null);
+  const [showGuidelines, setShowGuidelines] = useState(true);
 
   const { session, user } = useAuth();
   const { countryCode } = useCountryCode();
@@ -118,9 +120,12 @@ export function ScanScreen() {
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : "Identification failed. Try again.";
-        setStatus({ kind: "error", message, retryable: true });
+        const code = err instanceof ApiClientError ? err.code : undefined;
+        setStatus({ kind: "error", message, retryable: true, code });
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        resetCapture();
+        if (code !== "IMAGE_QUALITY_BAD") {
+          resetCapture();
+        }
       }
     },
     [scanCache, setResult, router, session, user, resetCapture, countryCode]
@@ -219,6 +224,27 @@ export function ScanScreen() {
 
       <ReticleOverlay active={isProcessing} />
 
+      {/* Step Indicator Banner */}
+      {!showGuidelines && status.kind !== "processing" && !(status.kind === "error" && status.code === "IMAGE_QUALITY_BAD") && (
+        <SafeAreaView style={styles.stepBannerContainer} edges={["top"]}>
+          <View style={styles.stepBanner}>
+            <View style={styles.stepBadge}>
+              <Text style={styles.stepBadgeText}>
+                {stage === "front" ? "STEP 1 OF 2" : "STEP 2 OF 2"}
+              </Text>
+            </View>
+            <Text style={styles.stepTitle}>
+              {stage === "front" ? "Capture Dial / Front" : "Capture Case Back"}
+            </Text>
+            <Text style={styles.stepDesc}>
+              {stage === "front"
+                ? "Center the watch dial inside the circle. Avoid reflections."
+                : "Flip watch over. Scan details, serial markings, or logo."}
+            </Text>
+          </View>
+        </SafeAreaView>
+      )}
+
       {/* Status label */}
       {status.kind === "processing" && (
         <View style={styles.statusBanner}>
@@ -226,7 +252,7 @@ export function ScanScreen() {
         </View>
       )}
 
-      {status.kind === "error" && (
+      {status.kind === "error" && status.code !== "IMAGE_QUALITY_BAD" && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{status.message}</Text>
           {status.retryable && (
@@ -273,6 +299,86 @@ export function ScanScreen() {
           </Pressable>
         )}
       </SafeAreaView>
+
+      {/* Guidelines Modal Overlay */}
+      {showGuidelines && (
+        <View style={StyleSheet.absoluteFill}>
+          <View style={styles.guidelinesBackdrop} />
+          <SafeAreaView style={styles.guidelinesContainer} edges={["top", "bottom"]}>
+            <View style={styles.guidelinesCard}>
+              <View style={styles.guidelinesHeader}>
+                <Ionicons name="camera" size={28} color={colors.gold} />
+                <Text style={styles.guidelinesTitle}>Watch Vault Scanner</Text>
+              </View>
+              
+              <Text style={styles.guidelinesIntro}>
+                Follow these essential tips for accurate watch identification and authenticity check:
+              </Text>
+
+              <View style={styles.guidelineItems}>
+                <View style={styles.guidelineRow}>
+                  <Ionicons name="sunny" size={20} color={colors.gold} style={styles.guidelineIcon} />
+                  <View style={styles.guidelineText}>
+                    <Text style={styles.guidelineLabel}>Avoid Glare & Shadow</Text>
+                    <Text style={styles.guidelineDesc}>Capture in clean, indirect lighting. Tilt slightly to prevent bright reflections on the glass.</Text>
+                  </View>
+                </View>
+
+                <View style={styles.guidelineRow}>
+                  <Ionicons name="hand-right" size={20} color={colors.gold} style={styles.guidelineIcon} />
+                  <View style={styles.guidelineText}>
+                    <Text style={styles.guidelineLabel}>Hold Steady & Focus</Text>
+                    <Text style={styles.guidelineDesc}>Hold your phone steady. Blur or haze makes text and dial details impossible to read.</Text>
+                  </View>
+                </View>
+
+                <View style={styles.guidelineRow}>
+                  <Ionicons name="albums" size={20} color={colors.gold} style={styles.guidelineIcon} />
+                  <View style={styles.guidelineText}>
+                    <Text style={styles.guidelineLabel}>Two Photos Required</Text>
+                    <Text style={styles.guidelineDesc}>You must capture two images: Dial (Front) first, then Case Back (Back) to complete the verification.</Text>
+                  </View>
+                </View>
+              </View>
+
+              <Pressable style={styles.guidelinesBtn} onPress={() => setShowGuidelines(false)}>
+                <Text style={styles.guidelinesBtnText}>Start Scanning</Text>
+              </Pressable>
+            </View>
+          </SafeAreaView>
+        </View>
+      )}
+
+      {/* Blurry / Quality Check Error Overlay */}
+      {status.kind === "error" && status.code === "IMAGE_QUALITY_BAD" && (
+        <View style={StyleSheet.absoluteFill}>
+          <View style={styles.guidelinesBackdrop} />
+          <SafeAreaView style={styles.guidelinesContainer} edges={["top", "bottom"]}>
+            <View style={[styles.guidelinesCard, { borderColor: colors.danger }]}>
+              <View style={styles.guidelinesHeader}>
+                <Ionicons name="alert-circle" size={32} color={colors.danger} />
+                <Text style={[styles.guidelinesTitle, { color: colors.danger }]}>Image Unclear</Text>
+              </View>
+
+              <Text style={styles.qualityErrorMsg}>{status.message}</Text>
+              
+              <Text style={styles.qualityErrorHint}>
+                Please hold the camera steady, wipe your lens, and ensure there is no direct light reflecting off the crystal watch glass.
+              </Text>
+
+              <Pressable
+                style={[styles.guidelinesBtn, { backgroundColor: colors.danger }]}
+                onPress={() => {
+                  setStatus({ kind: "idle" });
+                  resetCapture();
+                }}
+              >
+                <Text style={styles.guidelinesBtnText}>Retake Photo</Text>
+              </Pressable>
+            </View>
+          </SafeAreaView>
+        </View>
+      )}
     </View>
   );
 }
@@ -354,4 +460,157 @@ const styles = StyleSheet.create({
   },
   permissionBtnSecondary: { backgroundColor: colors.surfaceElevated },
   permissionBtnText: { ...typography.label, color: colors.textOnGold },
+
+  // ------------ Step indicator banner ----------------------------------------
+  stepBannerContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    paddingHorizontal: spacing.md,
+    zIndex: 10,
+  },
+  stepBanner: {
+    backgroundColor: "rgba(20, 20, 22, 0.95)",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    alignItems: "center",
+    width: "100%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 5,
+    marginTop: spacing.md,
+  },
+  stepBadge: {
+    backgroundColor: "rgba(201, 162, 75, 0.15)",
+    borderWidth: 1,
+    borderColor: colors.gold,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs - 2,
+    marginBottom: spacing.xs,
+  },
+  stepBadgeText: {
+    ...typography.label,
+    color: colors.gold,
+    fontSize: 10,
+  },
+  stepTitle: {
+    ...typography.heading,
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  stepDesc: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: "center",
+    fontSize: 11,
+  },
+
+  // ------------ guidelines overlay -------------------------------------------
+  guidelinesBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(11, 11, 12, 0.9)",
+  },
+  guidelinesContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: spacing.lg,
+  },
+  guidelinesCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.goldMuted,
+    padding: spacing.lg,
+    width: "100%",
+    maxWidth: 380,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  guidelinesHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  guidelinesTitle: {
+    ...typography.title,
+    color: colors.textPrimary,
+    fontSize: 20,
+  },
+  guidelinesIntro: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 13,
+    marginBottom: spacing.md,
+    lineHeight: 18,
+  },
+  guidelineItems: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  guidelineRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.md,
+  },
+  guidelineIcon: {
+    marginTop: 2,
+  },
+  guidelineText: {
+    flex: 1,
+  },
+  guidelineLabel: {
+    ...typography.label,
+    color: colors.textPrimary,
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  guidelineDesc: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  guidelinesBtn: {
+    backgroundColor: colors.gold,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  guidelinesBtnText: {
+    ...typography.label,
+    color: colors.textOnGold,
+    fontSize: 14,
+  },
+
+  // ------------ quality check error overlay ----------------------------------
+  qualityErrorMsg: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+    textAlign: "left",
+  },
+  qualityErrorHint: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: spacing.lg,
+    textAlign: "left",
+  },
 });

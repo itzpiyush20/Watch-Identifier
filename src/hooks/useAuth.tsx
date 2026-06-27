@@ -1,9 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/services/supabase";
+import { auth } from "@/services/firebase";
+
+export interface Session {
+  access_token: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string | null;
+}
 
 interface AuthContextValue {
-  user: User | null;
+  user: AuthUser | null;
   session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -18,50 +26,49 @@ const AuthContext = createContext<AuthContextValue>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Hard timeout — if Supabase never responds, unblock the app after 5s
+    // Hard timeout — if Firebase never responds, unblock the app after 5s
     const timeout = setTimeout(() => {
-      console.warn("[Auth] getSession timed out — proceeding unauthenticated");
+      console.warn("[Auth] Firebase Auth timed out — proceeding unauthenticated");
       setLoading(false);
     }, 5000);
 
-    // Fetch initial session from SecureStore (fast — no network needed)
-    supabase.auth
-      .getSession()
-      .then(({ data: { session: initialSession } }) => {
-        clearTimeout(timeout);
-        setSession(initialSession);
-        setUser(initialSession?.user ?? null);
-        setLoading(false);
-      })
-      .catch((err) => {
-        clearTimeout(timeout);
-        console.error("[Auth] getSession failed:", err);
-        // Still unblock the app — user will be shown login screen
-        setLoading(false);
-      });
-
     // Listen for auth state changes (sign-in / sign-out)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser: any) => {
+      clearTimeout(timeout);
+      if (currentUser) {
+        try {
+          // Force refresh the token to ensure we have a valid one
+          const token = await currentUser.getIdToken(true);
+          setSession({ access_token: token });
+          setUser({
+            id: currentUser.uid,
+            email: currentUser.email,
+          });
+        } catch (err) {
+          console.error("[Auth] Failed to get Firebase ID token:", err);
+          setSession(null);
+          setUser(null);
+        }
+      } else {
+        setSession(null);
+        setUser(null);
+      }
       setLoading(false);
     });
 
     return () => {
       clearTimeout(timeout);
-      subscription.unsubscribe();
+      unsubscribe();
     };
   }, []);
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      await auth.signOut();
     } catch (e) {
       console.error("[Auth] Error signing out:", e);
     }
@@ -77,3 +84,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth(): AuthContextValue {
   return useContext(AuthContext);
 }
+

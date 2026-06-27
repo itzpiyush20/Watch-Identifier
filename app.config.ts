@@ -7,9 +7,10 @@ import { ExpoConfig, ConfigContext } from "expo/config";
  */
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: "The Watch Identifier",
-  slug: "watch-identifier",
-  scheme: "watchid",
+  name: "Watch Vault",
+  slug: "watch-vault",
+  owner: "itzpiyush20",
+  scheme: "watchvault",
   version: "0.1.0",
   orientation: "portrait",
   userInterfaceStyle: "dark",
@@ -21,9 +22,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     backgroundColor: "#0B0B0C",
   },
   android: {
-    package: "com.watchidentifier.app",
+    package: "com.watchvault.app",
     versionCode: 5,
     permissions: ["CAMERA", "VIBRATE"],
+    googleServicesFile: "./google-services.json",
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#0B0B0C",
@@ -35,11 +37,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-asset",
     "expo-sqlite",
     "expo-font",
+    "@react-native-firebase/app",
     [
       "expo-camera",
       {
         cameraPermission:
-          "The Watch Identifier uses your camera to scan and identify watches. Images are processed to generate an estimate and are never stored on our servers.",
+          "Watch Vault uses your camera to scan and identify watches. Images are processed to generate an estimate and are never stored on our servers.",
       },
     ],
   ],
@@ -49,11 +52,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   extra: {
     // PUBLIC ONLY. Resolved at build time from EXPO_PUBLIC_* env vars.
     eas: {
-      projectId: "cd0f7efe-f653-4b6f-9c2f-3b04b1b99198",
+      projectId: "ad1630a5-ec2c-4b91-a35d-711c1559986e",
     },
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? "",
-    supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? "",
-    supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "",
+    firebaseApiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? "",
+    firebaseAuthDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "",
+    firebaseProjectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? "",
+    firebaseStorageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "",
+    firebaseMessagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "",
+    firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? "",
     posthogKey: process.env.EXPO_PUBLIC_POSTHOG_KEY ?? "",
     posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? "",

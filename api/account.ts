@@ -20,20 +20,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return sendError(res, ErrorCode.UNAUTHORIZED, "Authentication required");
   }
 
-  if (!env.supabase.isConfigured) {
+  if (!env.firebase.isConfigured) {
     return sendError(res, ErrorCode.INTERNAL, "Account deletion unavailable");
   }
 
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
+  if (!token) {
+    return sendError(res, ErrorCode.UNAUTHORIZED, "Authentication token required");
+  }
+
   try {
-    const resp = await fetch(`${env.supabase.url}/auth/v1/admin/users/${userId}`, {
-      method: "DELETE",
-      headers: {
-        apikey: env.supabase.serviceRoleKey!,
-        Authorization: `Bearer ${env.supabase.serviceRoleKey}`,
-      },
-    });
+    const resp = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${env.firebase.apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ idToken: token }),
+      }
+    );
     if (!resp.ok) {
-      console.error(`[account] delete failed for ${userId}: ${resp.status}`);
+      console.error(`[account] delete failed for user: status ${resp.status}`);
       return sendError(res, ErrorCode.INTERNAL, "Failed to delete account");
     }
     res.status(200).json({ ok: true });

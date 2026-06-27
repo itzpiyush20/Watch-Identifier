@@ -109,7 +109,7 @@ export const IdentifyRequestSchema = z.object({
   imageBase64: z.string().min(1), // front of the watch (dial)
   imageBase64Back: z.string().min(1).optional(), // case back, for authenticity checks
   countryCode: z.string().length(2), // ISO 3166-1 alpha-2, e.g. "IN"
-  userId: z.string().uuid().optional(),
+  userId: z.string().min(1).optional(),
 });
 export type IdentifyRequest = z.infer<typeof IdentifyRequestSchema>;
 
@@ -190,4 +190,6 @@ export interface PortfolioEntry {
   // "Best For" specialty tag — user-entered, not AI-inferred. One of:
   // Formal, Party, Sport / Active, Everyday / Casual, Dress, Travel.
   best_for?: string | null;
+  receipt_image_uri?: string | null;
+  certificate_image_uri?: string | null;
 }

@@ -83,6 +83,15 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 5,
+    async up(db) {
+      await db.execAsync(`
+        ALTER TABLE local_portfolio ADD COLUMN receipt_image_uri TEXT;
+        ALTER TABLE local_portfolio ADD COLUMN certificate_image_uri TEXT;
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {

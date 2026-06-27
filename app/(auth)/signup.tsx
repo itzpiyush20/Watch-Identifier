@@ -9,11 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { supabase } from "@/services/supabase";
+import { auth } from "@/services/firebase";
 import { track } from "@/services/analytics";
 import { colors, spacing, typography, radius } from "@/theme";
 
@@ -45,30 +44,17 @@ export default function SignupScreen() {
     setErrorMsg(null);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password: password,
-      });
+      const userCredential = await auth.createUserWithEmailAndPassword(
+        email.trim(),
+        password
+      );
 
-      if (error) {
-        setErrorMsg(error.message);
-      } else {
-        void track("signup_completed", undefined, data.session?.access_token);
-        // If email confirmation is required, let the user know, else they will be logged in.
-        const session = data?.session;
-        if (session) {
-          router.replace("/");
-        } else {
-          Alert.alert(
-            "Registration Successful",
-            "Please check your inbox to verify your email address before logging in.",
-            [{ text: "OK", onPress: () => router.replace("/login") }]
-          );
-        }
-      }
-    } catch (err) {
-      console.error("[Signup] Unexpected error:", err);
-      setErrorMsg("An unexpected error occurred. Please try again.");
+      const token = await userCredential.user.getIdToken();
+      void track("signup_completed", undefined, token);
+      router.replace("/");
+    } catch (err: any) {
+      console.error("[Signup] Error:", err);
+      setErrorMsg(err.message || "An error occurred during signup. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -82,7 +68,7 @@ export default function SignupScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
-            <Text style={styles.kicker}>THE WATCH IDENTIFIER</Text>
+            <Text style={styles.kicker}>WATCH VAULT</Text>
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>
               Register to access watch identification and track your collection.

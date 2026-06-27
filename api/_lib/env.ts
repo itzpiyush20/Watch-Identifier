@@ -28,11 +28,11 @@ export const env = {
     },
     marketplaceId: process.env.EBAY_MARKETPLACE_ID || "EBAY_US",
   },
-  supabase: {
-    url: optional("SUPABASE_URL"),
-    serviceRoleKey: optional("SUPABASE_SERVICE_ROLE_KEY"),
+  firebase: {
+    apiKey: optional("FIREBASE_API_KEY"),
+    projectId: optional("FIREBASE_PROJECT_ID"),
     get isConfigured() {
-      return !!(this.url && this.serviceRoleKey);
+      return !!(this.apiKey && this.projectId);
     },
   },
   redis: {

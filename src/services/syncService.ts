@@ -1,17 +1,17 @@
-import { supabase } from "./supabase";
+import { db } from "./firebase";
 import { listUnsyncedEntries, markSynced } from "@/database";
 import type { SQLiteDatabase } from "expo-sqlite";
 
 /**
- * Synchronizes unsynced local portfolio entries from SQLite to the Supabase cloud database.
+ * Synchronizes unsynced local portfolio entries from SQLite to the Firestore cloud database.
  * Filters entries by the active userId and updates the synced state locally on success.
  */
 export async function syncPortfolio(
-  db: SQLiteDatabase,
+  dbInstance: SQLiteDatabase,
   userId: string
 ): Promise<void> {
   try {
-    const unsynced = await listUnsyncedEntries(db);
+    const unsynced = await listUnsyncedEntries(dbInstance);
     if (unsynced.length === 0) {
       return;
     }
@@ -46,17 +46,20 @@ export async function syncPortfolio(
       best_for: entry.best_for ?? null,
     }));
 
-    const { error } = await supabase
-      .from("portfolio")
-      .upsert(rowsToSync, { onConflict: "id" });
-
-    if (error) {
-      console.error("[SyncService] Supabase sync failed:", error.message);
+    try {
+      const batch = db.batch();
+      for (const row of rowsToSync) {
+        const docRef = db.collection("portfolio").doc(row.id);
+        batch.set(docRef, row, { merge: true });
+      }
+      await batch.commit();
+    } catch (err: any) {
+      console.error("[SyncService] Firestore sync failed:", err?.message || err);
       return;
     }
 
     const syncedIds = userUnsynced.map((entry) => entry.id);
-    await markSynced(db, syncedIds);
+    await markSynced(dbInstance, syncedIds);
     console.log(
       `[SyncService] Successfully synchronized ${syncedIds.length} entries to the cloud.`
     );
@@ -64,3 +67,4 @@ export async function syncPortfolio(
     console.error("[SyncService] Unexpected sync error:", err);
   }
 }
+

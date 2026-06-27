@@ -23,6 +23,8 @@ type RawRow = {
   box_available: number | null;
   papers_available: number | null;
   best_for: string | null;
+  receipt_image_uri: string | null;
+  certificate_image_uri: string | null;
 };
 
 function rowToEntry(row: RawRow): PortfolioEntry {
@@ -111,6 +113,9 @@ export type ManualEnrichmentUpdate = Partial<
     | "box_available"
     | "papers_available"
     | "best_for"
+    | "market_data_json"
+    | "receipt_image_uri"
+    | "certificate_image_uri"
   >
 >;
 

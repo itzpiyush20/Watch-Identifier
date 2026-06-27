@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1028839933427",
+    "project_id": "watch-identifier-2007",
+    "storage_bucket": "watch-identifier-2007.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1028839933427:android:57798d25b6e7b5b217fe86",
+        "android_client_info": {
+          "package_name": "com.watchvault.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXA8fffkoNL0Rip2patDBxJ_vPVp13QUw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

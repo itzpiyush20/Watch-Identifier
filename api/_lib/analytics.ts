@@ -10,23 +10,26 @@ export async function trackEvent(
   properties: Record<string, unknown> = {},
   userId?: string | null
 ): Promise<void> {
-  if (!env.supabase.isConfigured) return;
+  if (!env.firebase.isConfigured) return;
 
   try {
-    const resp = await fetch(`${env.supabase.url}/rest/v1/analytics_events`, {
-      method: "POST",
-      headers: {
-        apikey: env.supabase.serviceRoleKey!,
-        Authorization: `Bearer ${env.supabase.serviceRoleKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify({
-        user_id: userId ?? null,
-        event_name: eventName,
-        properties,
-      }),
-    });
+    const resp = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${env.firebase.projectId}/databases/(default)/documents/analytics_events?key=${env.firebase.apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fields: {
+            user_id: { stringValue: userId ?? "" },
+            event_name: { stringValue: eventName },
+            properties: { stringValue: JSON.stringify(properties) },
+            created_at: { timestampValue: new Date().toISOString() },
+          },
+        }),
+      }
+    );
     if (!resp.ok) {
       console.error(`[analytics] insert failed for "${eventName}": ${resp.status}`);
     }

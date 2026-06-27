@@ -29,29 +29,43 @@ export interface EffectiveTier {
   trialEndsAt: string | null;
 }
 
+interface FirestoreStringValue {
+  stringValue?: string;
+}
+
+interface FirestoreDocument {
+  fields?: {
+    tier?: FirestoreStringValue;
+    status?: FirestoreStringValue;
+    trial_ends_at?: FirestoreStringValue;
+    expires_at?: FirestoreStringValue;
+  };
+}
+
 /**
  * Resolves a user's effective tier at request time (no cron job needed):
  * a `trial` row past its trial_ends_at, or any inactive/expired row,
  * resolves to `free`. A missing row (account predates this feature, or
- * Supabase is unconfigured) also resolves to `free` — the safe default.
+ * Firebase is unconfigured) also resolves to `free` — the safe default.
  */
 export async function getEffectiveTier(userId: string): Promise<EffectiveTier> {
-  if (!env.supabase.isConfigured) return { tier: "free", trialEndsAt: null };
+  if (!env.firebase.isConfigured) return { tier: "free", trialEndsAt: null };
 
   let row: SubscriptionRow | null = null;
   try {
     const resp = await fetch(
-      `${env.supabase.url}/rest/v1/subscriptions?user_id=eq.${userId}&select=tier,status,trial_ends_at,expires_at`,
-      {
-        headers: {
-          apikey: env.supabase.serviceRoleKey!,
-          Authorization: `Bearer ${env.supabase.serviceRoleKey}`,
-        },
-      }
+      `https://firestore.googleapis.com/v1/projects/${env.firebase.projectId}/databases/(default)/documents/subscriptions/${userId}?key=${env.firebase.apiKey}`
     );
     if (resp.ok) {
-      const rows = (await resp.json()) as SubscriptionRow[];
-      row = rows[0] ?? null;
+      const docData = (await resp.json()) as FirestoreDocument;
+      if (docData.fields) {
+        row = {
+          tier: (docData.fields.tier?.stringValue ?? "free") as Tier,
+          status: (docData.fields.status?.stringValue ?? "expired") as "active" | "expired" | "cancelled",
+          trial_ends_at: docData.fields.trial_ends_at?.stringValue ?? null,
+          expires_at: docData.fields.expires_at?.stringValue ?? null,
+        };
+      }
     }
   } catch {
     // fall through to the free default below

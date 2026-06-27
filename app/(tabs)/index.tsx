@@ -9,6 +9,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -33,7 +34,7 @@ import type { PortfolioEntry, IdentifyResponse, Identification, MarketRange } fr
 import { CollectionShareCard } from "@/components/share/CollectionShareCard";
 import { WatchShareCard } from "@/components/share/WatchShareCard";
 import { captureAndShare } from "@/services/share";
-import { supabase } from "@/services/supabase";
+import { db } from "@/services/firebase";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;
@@ -130,6 +131,39 @@ export default function HomeScreen() {
   const entries = unlimitedHistory ? allEntries : allEntries.filter((e) => e.scanned_at >= cutoff);
   const hiddenCount = allEntries.length - entries.length;
 
+  const [selectedBox, setSelectedBox] = React.useState<string>("All");
+
+  const watchBoxes = React.useMemo(() => {
+    const boxes = new Set<string>();
+    entries.forEach((e) => {
+      if (e.collection_name && e.collection_name.trim() !== "") {
+        boxes.add(e.collection_name.trim());
+      }
+    });
+    return Array.from(boxes).sort();
+  }, [entries]);
+
+  const filteredEntries = React.useMemo(() => {
+    if (selectedBox === "All") {
+      return entries;
+    }
+    if (selectedBox === "Unassigned") {
+      return entries.filter((e) => !e.collection_name || e.collection_name.trim() === "");
+    }
+    return entries.filter((e) => e.collection_name?.trim() === selectedBox);
+  }, [entries, selectedBox]);
+
+  const getSelectedBoxValue = () => {
+    return filteredEntries.reduce((sum, entry) => {
+      try {
+        const market = JSON.parse(entry.market_data_json);
+        return sum + (market.median_estimate ?? 0);
+      } catch {
+        return sum;
+      }
+    }, 0);
+  };
+
   const handleCardPress = (entry: PortfolioEntry) => {
     try {
       const market = JSON.parse(entry.market_data_json);
@@ -183,13 +217,7 @@ export default function HomeScreen() {
           onPress: async () => {
             try {
               await removeEntry(entry.id);
-              if (entry.synced === 1) {
-                try {
-                  await supabase.from("portfolio").delete().eq("id", entry.id);
-                } catch (err) {
-                  console.error("[HomeScreen] Best-effort remote delete failed:", err);
-                }
-              }
+                  await db.collection("portfolio").doc(entry.id).delete();
             } catch (err) {
               console.error("[HomeScreen] Failed to delete entry:", err);
               Alert.alert("Error", "Failed to delete. Please try again.");
@@ -256,16 +284,6 @@ export default function HomeScreen() {
     void run();
   }, [shareTarget]);
 
-  const getCollectionValue = () => {
-    return entries.reduce((sum, entry) => {
-      try {
-        const market = JSON.parse(entry.market_data_json);
-        return sum + (market.median_estimate ?? 0);
-      } catch {
-        return sum;
-      }
-    }, 0);
-  };
 
   const collectionShareRef = React.useRef<View>(null);
 
@@ -318,22 +336,103 @@ export default function HomeScreen() {
             <View>
               <View style={styles.statsLabelRow}>
                 <Ionicons name="diamond-outline" size={12} color={colors.goldMuted} />
-                <Text style={styles.statsLabel}>COLLECTION VALUE</Text>
+                <Text style={styles.statsLabel}>
+                  {selectedBox === "All" ? "COLLECTION VALUE" : `${selectedBox.toUpperCase()} VALUE`}
+                </Text>
               </View>
               <Text style={styles.statsValue}>
-                {formatCurrency(getCollectionValue(), getDeviceCurrency())}
+                {formatCurrency(getSelectedBoxValue(), getDeviceCurrency())}
               </Text>
             </View>
             <View style={styles.statsDivider} />
             <View style={styles.statsItem}>
               <Text style={styles.statsLabel}>TIMEPIECES</Text>
-              <Text style={styles.statsValue}>{entries.length}</Text>
+              <Text style={styles.statsValue}>{filteredEntries.length}</Text>
             </View>
           </View>
           <Pressable style={styles.shareCollectionBtn} onPress={handleShareCollection}>
             <Text style={styles.shareCollectionBtnText}>Share Collection</Text>
           </Pressable>
         </LinearGradient>
+      )}
+
+      {/* Watch Boxes Selector */}
+      {entries.length > 0 && (
+        <View style={styles.boxSelectorContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.boxSelectorScroll}
+          >
+            <Pressable
+              style={[
+                styles.boxSelectorPill,
+                selectedBox === "All" && styles.boxSelectorPillSelected,
+              ]}
+              onPress={() => {
+                void Haptics.selectionAsync();
+                setSelectedBox("All");
+              }}
+            >
+              <Text
+                style={[
+                  styles.boxSelectorLabel,
+                  selectedBox === "All" && styles.boxSelectorLabelSelected,
+                ]}
+              >
+                All Timepieces ({entries.length})
+              </Text>
+            </Pressable>
+
+            {watchBoxes.map((boxName) => {
+              const count = entries.filter((e) => e.collection_name?.trim() === boxName).length;
+              return (
+                <Pressable
+                  key={boxName}
+                  style={[
+                    styles.boxSelectorPill,
+                    selectedBox === boxName && styles.boxSelectorPillSelected,
+                  ]}
+                  onPress={() => {
+                    void Haptics.selectionAsync();
+                    setSelectedBox(boxName);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.boxSelectorLabel,
+                      selectedBox === boxName && styles.boxSelectorLabelSelected,
+                    ]}
+                  >
+                    {boxName} ({count})
+                  </Text>
+                </Pressable>
+              );
+            })}
+
+            {entries.some((e) => !e.collection_name || e.collection_name.trim() === "") && (
+              <Pressable
+                style={[
+                  styles.boxSelectorPill,
+                  selectedBox === "Unassigned" && styles.boxSelectorPillSelected,
+                ]}
+                onPress={() => {
+                  void Haptics.selectionAsync();
+                  setSelectedBox("Unassigned");
+                }}
+              >
+                <Text
+                  style={[
+                    styles.boxSelectorLabel,
+                    selectedBox === "Unassigned" && styles.boxSelectorLabelSelected,
+                  ]}
+                >
+                  Unassigned ({entries.filter((e) => !e.collection_name || e.collection_name.trim() === "").length})
+                </Text>
+              </Pressable>
+            )}
+          </ScrollView>
+        </View>
       )}
 
       {hiddenCount > 0 && (
@@ -358,7 +457,7 @@ export default function HomeScreen() {
         </View>
       ) : (
         <FlatList
-          data={entries}
+          data={filteredEntries}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           numColumns={2}
@@ -378,8 +477,8 @@ export default function HomeScreen() {
       <View style={styles.offscreen} pointerEvents="none">
         <CollectionShareCard
           ref={collectionShareRef}
-          entries={entries}
-          totalValue={getCollectionValue()}
+          entries={filteredEntries}
+          totalValue={getSelectedBoxValue()}
           currency={getDeviceCurrency()}
         />
       </View>
@@ -560,4 +659,34 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
   },
   fabText: { ...typography.label, color: colors.textOnGold, fontSize: 16 },
+
+  // ------------ Watch box horizontal selector --------------------------------
+  boxSelectorContainer: {
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  boxSelectorScroll: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+  },
+  boxSelectorPill: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm - 2,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  boxSelectorPillSelected: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  boxSelectorLabel: {
+    ...typography.label,
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  boxSelectorLabelSelected: {
+    color: colors.textOnGold,
+  },
 });

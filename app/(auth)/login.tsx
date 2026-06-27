@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { supabase } from "@/services/supabase";
+import { auth } from "@/services/firebase";
 import { track } from "@/services/analytics";
 import { colors, spacing, typography, radius } from "@/theme";
 
@@ -33,21 +33,18 @@ export default function LoginScreen() {
     setErrorMsg(null);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password,
-      });
+      const userCredential = await auth.signInWithEmailAndPassword(
+        email.trim(),
+        password
+      );
 
-      if (error) {
-        setErrorMsg(error.message);
-      } else {
-        void track("login_completed", undefined, data.session?.access_token);
-        // Redirect will be handled by the layout listener
-        router.replace("/");
-      }
-    } catch (err) {
-      console.error("[Login] Unexpected error:", err);
-      setErrorMsg("An unexpected error occurred. Please try again.");
+      const token = await userCredential.user.getIdToken();
+      void track("login_completed", undefined, token);
+      // Redirect will be handled by the layout listener
+      router.replace("/");
+    } catch (err: any) {
+      console.error("[Login] Error:", err);
+      setErrorMsg(err.message || "An error occurred during login. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -61,7 +58,7 @@ export default function LoginScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
-            <Text style={styles.kicker}>THE WATCH IDENTIFIER</Text>
+            <Text style={styles.kicker}>WATCH VAULT</Text>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>
               Sign in to scan watches and check estimated market values.

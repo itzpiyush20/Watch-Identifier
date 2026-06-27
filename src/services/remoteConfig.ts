@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { db } from "./firebase";
 
 export interface RemoteConfigData {
   feature_flags: {
@@ -13,7 +13,7 @@ export interface RemoteConfigData {
   partner_whatsapp_number: string | null;
 }
 
-// Local build-time defaults if Supabase is offline or not authenticated yet
+// Local build-time defaults if Firestore is offline or not authenticated yet
 export const DEFAULT_REMOTE_CONFIG: RemoteConfigData = {
   feature_flags: {
     authenticityCaution: true,
@@ -28,48 +28,58 @@ export const DEFAULT_REMOTE_CONFIG: RemoteConfigData = {
 };
 
 /**
- * Fetches dynamic configs from Supabase remote_config table.
+ * Fetches dynamic configs from Firestore remote_config/default document.
  * Falls back to default values on error or network failure.
  */
 export async function fetchRemoteConfig(): Promise<RemoteConfigData> {
   try {
-    const { data, error } = await supabase
-      .from("remote_config")
-      .select("key, value");
+    const docSnap = await db.collection("remote_config").doc("default").get();
 
-    if (error) {
-      console.warn("[RemoteConfig] Failed to fetch remote config:", error.message);
+    if (!docSnap.exists) {
+      console.warn("[RemoteConfig] No remote config document found. Using defaults.");
       return DEFAULT_REMOTE_CONFIG;
     }
 
+    const data = docSnap.data();
+    if (!data) {
+      return DEFAULT_REMOTE_CONFIG;
+    }
     const config = { ...DEFAULT_REMOTE_CONFIG };
 
-    for (const item of data || []) {
-      const { key, value } = item;
-      if (key === "feature_flags") {
-        config.feature_flags = {
-          ...DEFAULT_REMOTE_CONFIG.feature_flags,
-          ...value,
-        };
-      } else if (key === "fx_usd_to_inr") {
-        config.fx_usd_to_inr = Number(value) || DEFAULT_REMOTE_CONFIG.fx_usd_to_inr;
-      } else if (key === "in_market_adjustment") {
-        config.in_market_adjustment =
-          Number(value) || DEFAULT_REMOTE_CONFIG.in_market_adjustment;
-      } else if (key === "ebay_asking_discount") {
-        config.ebay_asking_discount =
-          Number(value) || DEFAULT_REMOTE_CONFIG.ebay_asking_discount;
-      } else if (key === "free_scans_per_day") {
-        config.free_scans_per_day =
-          Number(value) || DEFAULT_REMOTE_CONFIG.free_scans_per_day;
-      } else if (key === "partner_whatsapp_number") {
-        config.partner_whatsapp_number = typeof value === "string" ? value : null;
-      }
+    if (data.feature_flags) {
+      config.feature_flags = {
+        ...DEFAULT_REMOTE_CONFIG.feature_flags,
+        ...data.feature_flags,
+      };
+    }
+    if (data.fx_usd_to_inr !== undefined) {
+      config.fx_usd_to_inr = Number(data.fx_usd_to_inr) || DEFAULT_REMOTE_CONFIG.fx_usd_to_inr;
+    }
+    if (data.in_market_adjustment !== undefined) {
+      config.in_market_adjustment =
+        Number(data.in_market_adjustment) || DEFAULT_REMOTE_CONFIG.in_market_adjustment;
+    }
+    if (data.ebay_asking_discount !== undefined) {
+      config.ebay_asking_discount =
+        Number(data.ebay_asking_discount) || DEFAULT_REMOTE_CONFIG.ebay_asking_discount;
+    }
+    if (data.free_scans_per_day !== undefined) {
+      config.free_scans_per_day =
+        Number(data.free_scans_per_day) || DEFAULT_REMOTE_CONFIG.free_scans_per_day;
+    }
+    if (data.partner_whatsapp_number !== undefined) {
+      config.partner_whatsapp_number =
+        typeof data.partner_whatsapp_number === "string" ? data.partner_whatsapp_number : null;
     }
 
     return config;
   } catch (err) {
-    console.error("[RemoteConfig] Unexpected error loading config:", err);
+    console.warn(
+      "[RemoteConfig] Could not load remote config from Firestore (falling back to defaults). " +
+        "Make sure Firestore is enabled in your Firebase Console and the device is connected to the internet.",
+      err
+    );
     return DEFAULT_REMOTE_CONFIG;
   }
 }
+
